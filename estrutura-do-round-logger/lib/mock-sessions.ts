@@ -1,0 +1,10 @@
+export type Exercise = { id: string; type: string; name: string; detail: string; done: boolean; combinations?: string[]; intensity?: string }
+export type Session = { id: string; date: string; title: string; kind: string; status: "planned" | "complete" | "partial"; exercises: Exercise[]; notes?: string }
+
+export const seed: Session[] = [
+  { id: "s1", date: "2026-11-12", title: "Muay Thai · técnica e clinch", kind: "MUAY THAI", status: "partial", notes: "Manter a guarda alta depois do chute. Trabalhar saída pelo lado esquerdo.", exercises: [{ id: "e1", type: "Pad work", name: "Manoplas — combinações", detail: "5 rounds · 3 min", done: true, combinations: ["Jab → Cross → Lead hook → Rear low kick", "Jab → Cross → Rear knee", "Lead hook → Rear hook → Cross"] }, { id: "e2", type: "Heavy bag", name: "Saco pesado", detail: "4 rounds · 3 min", done: true }, { id: "e3", type: "Sparring", name: "Sparring técnico", detail: "3 rounds · 2 min", done: false, intensity: "Leve" }] },
+  { id: "s2", date: "2026-11-10", title: "Boxe · volume e defesa", kind: "BOXE", status: "complete", exercises: [{ id: "e4", type: "Jump rope", name: "Corda", detail: "10 min", done: true }, { id: "e5", type: "Shadowboxing", name: "Sombra — defesa", detail: "4 rounds · 3 min", done: true }] },
+  { id: "s3", date: "2026-11-08", title: "Kickboxing · potência", kind: "KICKBOXING", status: "complete", exercises: [{ id: "e6", type: "Heavy bag", name: "Saco pesado", detail: "6 rounds · 3 min", done: true }, { id: "e7", type: "Burpees", name: "Burpees", detail: "4 × 12 reps", done: true }] },
+  { id: "s4", date: "2026-11-05", title: "Muay Thai · fundamentos", kind: "MUAY THAI", status: "complete", exercises: [{ id: "e8", type: "Pad work", name: "Manoplas", detail: "5 rounds · 3 min", done: true }] },
+  { id: "s5", date: "2026-11-14", title: "Sparring aberto", kind: "SPARRING", status: "planned", exercises: [{ id: "e9", type: "Sparring", name: "Sparring técnico", detail: "5 rounds · 3 min", done: false, intensity: "Moderado" }] },
+]
