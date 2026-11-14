@@ -3,10 +3,11 @@ import { useEffect, useState } from "react"
 
 import { ExerciseIcon } from "@/components/exercise-icon"
 import { PadWorkEditor } from "@/components/pad-work-editor"
-import { exerciseTypeLabels, intensityLabels } from "@/lib/format"
+import { loadExerciseTypes } from "@/lib/exercise-types"
+import { getExerciseTypeLabel, intensityLabels } from "@/lib/format"
 import { clampCount, createExercise, createId, moveItem } from "@/lib/sessions"
-import type { Discipline, Exercise, PadWorkExercise, Session, SparringExercise } from "@/lib/types"
-import { disciplines, exerciseTypes, sparringIntensities } from "@/lib/types"
+import type { ClinchExercise, Discipline, Exercise, ExerciseTypeDefinition, PadWorkExercise, Session, SparringExercise } from "@/lib/types"
+import { disciplines, sparringIntensities } from "@/lib/types"
 
 type SessionEditorProps = {
   session?: Session
@@ -40,16 +41,21 @@ function toDraft(session: Session | undefined, date: string): Draft {
 
 function cleanExercise(exercise: Exercise): Exercise {
   const name = exercise.name.trim()
-  const notes = exercise.notes?.trim()
-  const next = { ...exercise, name, notes: notes ? notes : undefined }
-  if (next.type === "pad-work") {
-    return { ...next, combinations: next.combinations.filter((combination) => combination.techniques.length > 0) }
+  const notes = exercise.notes?.trim() || undefined
+  if (exercise.type === "pad-work" || exercise.type === "clinch") {
+    return {
+      ...exercise,
+      name,
+      notes,
+      combinations: exercise.combinations.filter((combination) => combination.techniques.length > 0),
+    }
   }
-  return next
+  return { ...exercise, name, notes }
 }
 
 export function SessionEditor({ session, date, onClose, onSave }: SessionEditorProps) {
   const [draft, setDraft] = useState<Draft>(() => toDraft(session, date))
+  const [availableTypes] = useState<ExerciseTypeDefinition[]>(() => loadExerciseTypes())
   const [error, setError] = useState("")
   const editing = Boolean(session)
 
@@ -68,6 +74,75 @@ export function SessionEditor({ session, date, onClose, onSave }: SessionEditorP
     }))
   }
 
+  function addExerciseFromDef(def: ExerciseTypeDefinition) {
+    const newId = createId()
+    let ex: Exercise
+    if (def.category === "combination") {
+      const isClinch = def.id === "clinch"
+      ex = {
+        id: newId,
+        type: def.id as "pad-work" | "clinch",
+        name: def.defaultName || def.name,
+        rounds: def.defaultRounds ?? (isClinch ? 4 : 5),
+        durationMinutes: def.defaultDuration ?? 3,
+        done: false,
+        combinations: isClinch
+          ? [
+              {
+                id: createId(),
+                techniques: [
+                  { id: createId(), label: "Puxada de nuca (Plum tailandês)" },
+                  { id: createId(), label: "Joelhada reta no plexo" },
+                  { id: createId(), label: "Cotovelada curta horizontal" },
+                ],
+              },
+            ]
+          : [
+              {
+                id: createId(),
+                techniques: [
+                  { id: createId(), label: "Jab" },
+                  { id: createId(), label: "Direto" },
+                  { id: createId(), label: "Cruzado frontal" },
+                ],
+              },
+            ],
+      }
+    } else if (def.category === "reps") {
+      ex = {
+        id: newId,
+        type: "burpees",
+        name: def.defaultName || def.name,
+        sets: def.defaultSets ?? 3,
+        reps: def.defaultReps ?? 10,
+        done: false,
+      }
+    } else if (def.category === "sparring") {
+      ex = {
+        id: newId,
+        type: "sparring",
+        name: def.defaultName || def.name,
+        rounds: def.defaultRounds ?? 3,
+        durationMinutes: def.defaultDuration ?? 3,
+        intensity: def.defaultIntensity ?? "light",
+        done: false,
+      }
+    } else {
+      const roundType = (["heavy-bag", "shadowboxing", "cardio", "jump-rope"].includes(def.id)
+        ? def.id
+        : "heavy-bag") as "heavy-bag" | "shadowboxing" | "cardio" | "jump-rope"
+      ex = {
+        id: newId,
+        type: roundType,
+        name: def.defaultName || def.name,
+        rounds: def.defaultRounds ?? 3,
+        durationMinutes: def.defaultDuration ?? 3,
+        done: false,
+      }
+    }
+    setDraft((current) => ({ ...current, exercises: [...current.exercises, ex] }))
+  }
+
   function save() {
     const title = draft.title.trim()
     if (!title) {
@@ -84,7 +159,9 @@ export function SessionEditor({ session, date, onClose, onSave }: SessionEditorP
     }
     if (
       draft.exercises.some(
-        (exercise) => exercise.type === "pad-work" && exercise.combinations.some((combination) => combination.techniques.length === 0),
+        (exercise) =>
+          (exercise.type === "pad-work" || exercise.type === "clinch") &&
+          exercise.combinations.some((combination) => combination.techniques.length === 0),
       )
     ) {
       setError("Toda combinação precisa de pelo menos um golpe.")
@@ -149,10 +226,15 @@ export function SessionEditor({ session, date, onClose, onSave }: SessionEditorP
             <span>{draft.exercises.length ? `${String(draft.exercises.length).padStart(2, "0")} ESTAÇÕES` : "TOQUE PARA ADICIONAR"}</span>
           </div>
           <div className="exercise-type-grid">
-            {exerciseTypes.map((type) => (
-              <button key={type} type="button" onClick={() => setDraft((current) => ({ ...current, exercises: [...current.exercises, createExercise(type)] }))}>
-                <ExerciseIcon type={type} size={16} />
-                {exerciseTypeLabels[type]}
+            {availableTypes.map((typeDef) => (
+              <button
+                key={typeDef.id}
+                type="button"
+                title={typeDef.description}
+                onClick={() => addExerciseFromDef(typeDef)}
+              >
+                <ExerciseIcon type={typeDef.id} size={16} />
+                {typeDef.name}
                 <Plus size={13} />
               </button>
             ))}
@@ -167,7 +249,7 @@ export function SessionEditor({ session, date, onClose, onSave }: SessionEditorP
                 <div className="draft-name-group">
                   <b>{exercise.name || "Sem nome"}</b>
                   <span>
-                    {exerciseTypeLabels[exercise.type].toUpperCase()} · ESTAÇÃO {String(index + 1).padStart(2, "0")}
+                    {getExerciseTypeLabel(exercise.type).toUpperCase()} · ESTAÇÃO {String(index + 1).padStart(2, "0")}
                   </span>
                 </div>
                 <span className="draft-round-chip">ROUND {String(index + 1).padStart(2, "0")}</span>
@@ -230,9 +312,12 @@ export function SessionEditor({ session, date, onClose, onSave }: SessionEditorP
                     </select>
                   </label>
                 )}
-                {exercise.type === "pad-work" && (
+                {(exercise.type === "pad-work" || exercise.type === "clinch") && (
                   <div className="draft-span">
-                    <PadWorkEditor exercise={exercise} onChange={(next: PadWorkExercise) => updateExercise(exercise.id, () => next)} />
+                    <PadWorkEditor
+                      exercise={exercise as PadWorkExercise | ClinchExercise}
+                      onChange={(next) => updateExercise(exercise.id, () => next)}
+                    />
                   </div>
                 )}
                 <label className="draft-span">

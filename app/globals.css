@@ -65,3 +65,39 @@ a.read-only-btn{text-decoration:none;width:fit-content}
 .clickable:hover{border-color:#75423d;background:#201817}
 .empty-combo-card{border-style:dashed}
 .history-empty button{margin-top:12px;display:inline-flex;align-items:center;gap:5px;color:#d4f36a;border:0;background:none;font-size:10px}
+.types-content{max-width:1200px}
+.types-top-actions{display:flex;align-items:center;gap:8px}
+.types-top-actions .cancel-btn{display:inline-flex;align-items:center;gap:6px}
+.types-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px;margin-top:18px}
+.type-card{border:1px solid #2e322d;background:#171917;border-radius:6px;padding:16px 18px 13px;display:flex;flex-direction:column;position:relative;transition:border-color .15s ease}
+.type-card:hover{border-color:#535a4d}
+.type-card-head{display:flex;align-items:center;gap:11px}
+.type-card-title-group{display:grid;gap:3px;min-width:0}
+.type-card-title-group h3{font-size:13px;font-weight:600;margin:0;color:#f0f2ed;letter-spacing:-.2px}
+.type-cat-tag{font-size:7.5px;letter-spacing:.65px;color:#d4f36a;background:#242a1e;border:1px solid #444f37;padding:1px 6px;border-radius:3px;width:fit-content;text-transform:uppercase}
+.type-card-actions{margin-left:auto;display:flex;gap:4px}
+.type-card-desc{font-size:10px;line-height:1.55;color:#9ca198;margin:10px 0 0;flex:1}
+.type-card-footer{display:flex;justify-content:space-between;align-items:center;border-top:1px solid #262925;margin-top:14px;padding-top:10px}
+.type-default-preview{font-size:8.5px;color:#7e847a}
+.edit-type-link{border:0;background:none;color:#ef8177;font-size:9px;cursor:pointer;padding:0}
+.edit-type-link:hover{color:#ff9b91;text-decoration:underline}
+.type-editor-modal{width:min(100%,560px)}
+@media(max-width:700px){.types-top-actions{flex-direction:column;align-items:flex-start}.types-grid{grid-template-columns:1fr}}
+
+/* Pull shared workout to calendar */
+.shared-pull-box{margin-top:18px;padding:16px 18px;border:1px solid #4a2c2a;border-radius:7px;background:radial-gradient(ellipse at 15% 15%,#4a1f1c 0,transparent 52%),linear-gradient(105deg,#261716 0,#1c1817 60%,#151615 100%);display:flex;flex-direction:column;gap:13px;box-shadow:inset 0 1px #ffffff0a}
+.shared-pull-header{display:flex;align-items:center;gap:12px}
+.shared-pull-emblem{width:36px;height:36px;border-radius:50%;background:#3c201e;border:1px solid #633631;color:#f17c70;display:grid;place-items:center;flex-shrink:0}
+.shared-pull-copy{display:flex;flex-direction:column;gap:3px}
+.shared-pull-copy b{font-size:12px;color:#fff0eb;font-weight:600}
+.shared-pull-copy span{font-size:10px;color:#c2a8a1;line-height:1.45}
+.shared-pull-form{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-top:10px;border-top:1px solid #3d2422}
+.shared-pull-input-wrap{display:flex;align-items:center;gap:8px}
+.shared-pull-input-wrap label{font-size:10px;color:#c9938b;font-weight:600}
+.shared-date-input{background:#141614;border:1px solid #4e322e;color:#dfe1dc;border-radius:4px;padding:6px 10px;font-size:11px;outline:none}
+.shared-date-input:focus{border-color:#e45a51}
+.shared-pull-success{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 14px;border-radius:5px;background:#1e2916;border:1px solid #476625;color:#cce98c;font-size:11px;flex-wrap:wrap}
+.shared-pull-success-badge{display:flex;align-items:center;gap:8px}
+.shared-pull-success-badge svg{color:#d4f36a;flex-shrink:0}
+@media(max-width:600px){.shared-pull-header{align-items:flex-start}.shared-pull-form{flex-direction:column;align-items:stretch}.shared-pull-input-wrap{flex-direction:column;align-items:flex-start;gap:4px}}
+

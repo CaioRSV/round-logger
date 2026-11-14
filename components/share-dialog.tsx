@@ -67,7 +67,7 @@ export function ShareDialog({ session, onClose }: ShareDialogProps) {
                     {formatVolume(exercise)}
                     {exercise.type === "sparring" ? ` · ${intensityLabels[exercise.intensity]}` : ""}
                   </span>
-                  {exercise.type === "pad-work" && exercise.combinations.map((combination) => <small key={combination.id}>{formatCombo(combination)}</small>)}
+                  {(exercise.type === "pad-work" || exercise.type === "clinch") && exercise.combinations.map((combination) => <small key={combination.id}>{formatCombo(combination)}</small>)}
                   {exercise.notes && <small>{exercise.notes}</small>}
                 </div>
               </div>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   Activity,
   ArrowRight,
@@ -9,18 +9,25 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   Clock3,
+  Download,
   Dumbbell,
   Flame,
   FolderOpen,
+  HardDrive,
   MoreHorizontal,
   Plus,
   Search,
   Sparkles,
   Swords,
+  Upload,
   X,
 } from "lucide-react"
 
+import { BackupModal } from "@/components/backup-modal"
+import { ExerciseTypesView } from "@/components/exercise-types-view"
+import { ProfileModal } from "@/components/profile-modal"
 import { SessionCard } from "@/components/session-card"
 import { SessionEditor } from "@/components/session-editor"
 import { ShareDialog } from "@/components/share-dialog"
@@ -37,22 +44,23 @@ import {
   monthGrid,
   parseDateKey,
 } from "@/lib/dates"
-import { loadSessions, saveSessions } from "@/lib/storage"
+import { defaultProfile, loadProfile, loadSessions, saveProfile, saveSessions } from "@/lib/storage"
 import {
   activityOn,
   getStatus,
   nextPlannedSession,
-  seed,
   sessionsThisWeek,
   trainingDaysInMonth,
   trainingStreak,
 } from "@/lib/sessions"
-import type { Session, SessionStatus } from "@/lib/types"
+import type { Session, SessionStatus, UserProfile } from "@/lib/types"
 
 const navItems = [
   { label: "Visão geral", icon: Activity },
   { label: "Treinos", icon: FolderOpen },
 ] as const
+
+type ViewMode = "Visão geral" | "Treinos" | "Exercícios"
 
 const weekDays = ["SEG", "TER", "QUA", "QUI", "SEX", "SÁB", "DOM"]
 
@@ -68,14 +76,19 @@ type Dialog =
   | { type: "edit"; session: Session }
   | { type: "share"; session: Session }
   | { type: "delete"; session: Session }
+  | { type: "backup" }
+  | { type: "profile" }
   | null
 
 function matchesQuery(session: Session, query: string): boolean {
   const needle = query.trim().toLowerCase()
   if (!needle) return true
-  const techLabels = session.exercises.flatMap((exercise) =>
-    exercise.type === "pad-work" ? exercise.combinations.flatMap((c) => c.techniques.map((t) => t.label)) : [],
-  )
+  const techLabels = session.exercises.flatMap((exercise) => {
+    if (exercise.type === "pad-work" || exercise.type === "clinch") {
+      return exercise.combinations.flatMap((c) => c.techniques.map((t) => t.label))
+    }
+    return []
+  })
   const haystack = [
     session.title,
     session.kind,
@@ -91,17 +104,21 @@ function matchesQuery(session: Session, query: string): boolean {
 export function RoundLogger() {
   const today = useMemo(() => new Date(), [])
   const todayKey = dateKey(today)
-  const [sessions, setSessions] = useState<Session[]>(seed)
+  const [sessions, setSessions] = useState<Session[]>([])
+  const [profile, setProfile] = useState<UserProfile>(defaultProfile)
+  const [questCollapsed, setQuestCollapsed] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const [hydrated, setHydrated] = useState(false)
   const [month, setMonth] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1))
   const [selected, setSelected] = useState(todayKey)
-  const [view, setView] = useState<(typeof navItems)[number]["label"]>("Visão geral")
+  const [view, setView] = useState<ViewMode>("Visão geral")
   const [dialog, setDialog] = useState<Dialog>(null)
   const [search, setSearch] = useState("")
   const [filter, setFilter] = useState<(typeof filters)[number]["id"]>("all")
 
   useEffect(() => {
     setSessions(loadSessions())
+    setProfile(loadProfile())
     setHydrated(true)
   }, [])
 
@@ -195,9 +212,22 @@ export function RoundLogger() {
           ))}
         </nav>
         <div className="side-label workspace-label">BIBLIOTECA</div>
-        <button className="nav-item" type="button" onClick={() => setView("Treinos")}>
+        <button
+          className={`nav-item ${view === "Exercícios" ? "active" : ""}`}
+          type="button"
+          onClick={() => setView("Exercícios")}
+        >
           <Dumbbell size={17} />
           Exercícios
+        </button>
+        <div className="side-label workspace-label" style={{ marginTop: "18px" }}>DADOS</div>
+        <button
+          className="nav-item"
+          type="button"
+          onClick={() => setDialog({ type: "backup" })}
+        >
+          <HardDrive size={17} />
+          Backup & Cache
         </button>
         <div className="sidebar-bottom">
           <div className="weekly-card">
@@ -220,11 +250,22 @@ export function RoundLogger() {
               ))}
             </div>
           </div>
-          <button className="profile" type="button">
-            <div className="avatar">C</div>
+          <button
+            className="profile"
+            type="button"
+            onClick={() => setDialog({ type: "profile" })}
+            title="Personalizar Meu Espaço"
+          >
+            <div className="avatar" style={{ overflow: "hidden" }}>
+              {profile.avatarUrl ? (
+                <img src={profile.avatarUrl} alt={profile.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              ) : (
+                profile.name.trim().charAt(0).toUpperCase() || "C"
+              )}
+            </div>
             <div>
-              <b>Meu espaço</b>
-              <small>Log pessoal</small>
+              <b>{profile.name}</b>
+              <small>{profile.subtitle || "Log pessoal"}</small>
             </div>
             <MoreHorizontal size={18} />
           </button>
@@ -241,7 +282,18 @@ export function RoundLogger() {
             <span className="today-chip" suppressHydrationWarning>
               <span className="live-dot" /> {formatChipDate(today)}
             </span>
-            <button className="icon-btn" type="button" aria-label="Pesquisar" onClick={() => setView("Treinos")}>
+            <button
+              className="icon-btn"
+              type="button"
+              aria-label="Pesquisar"
+              onClick={() => {
+                setView("Treinos")
+                setTimeout(() => {
+                  searchInputRef.current?.focus()
+                  searchInputRef.current?.select()
+                }, 40)
+              }}
+            >
               <Search size={17} />
             </button>
             <button className="top-create" type="button" onClick={() => openCreate()}>
@@ -265,32 +317,6 @@ export function RoundLogger() {
                 <ChevronDown size={14} />
               </button>
             </div>
-            <section className="fight-quest" aria-label="Desafio da semana">
-              <div className="quest-copy">
-                <div className="quest-eyebrow">
-                  <span className="quest-live" /> DESAFIO DA SEMANA <span className="quest-separator">/</span> RANK NOVATO II
-                </div>
-                <h2>
-                  Mais um round.
-                  <br />
-                  <span>Mais perto do próximo nível.</span>
-                </h2>
-                <p>Seu ritmo está ficando forte. Complete a meta e desbloqueie o próximo marco.</p>
-                <div className="quest-progress">
-                  <div className="quest-progress-track">
-                    <span style={{ width: `${Math.min((weekSessions / 5) * 100, 100)}%` }} />
-                  </div>
-                  <b>
-                    {weekSessions}
-                    <span> / 5 treinos</span>
-                  </b>
-                  <span className="quest-xp">+250 XP</span>
-                </div>
-              </div>
-              <div className="quest-stamp">
-                <Flame size={13} /> META ATIVA
-              </div>
-            </section>
             <div className="stats-grid">
               <Stat icon={Swords} label="TREINOS REGISTRADOS" value={String(completed).padStart(2, "0")} foot="no seu histórico" />
               <Stat icon={Activity} label="ESTA SEMANA" value={String(weekSessions).padStart(2, "0")} foot="sessões concluídas" />
@@ -383,8 +409,12 @@ export function RoundLogger() {
                       <div className="empty-icon">
                         <CalendarDays size={19} />
                       </div>
-                      <b>Nenhum treino por aqui</b>
-                      <span>Um round de cada vez. Comece quando quiser.</span>
+                      <b>{sessions.length === 0 ? "Nenhum treino no calendário" : "Nenhum treino neste dia"}</b>
+                      <span>
+                        {sessions.length === 0
+                          ? "Inicie seu log pessoal registrando seu primeiro treino."
+                          : "Um round de cada vez. Comece quando quiser."}
+                      </span>
                       <button type="button" onClick={() => openCreate(selected)}>
                         <Plus size={15} /> Adicionar treino
                       </button>
@@ -431,8 +461,85 @@ export function RoundLogger() {
                 <ArrowRight size={15} />
               </button>
             </div>
+            {/* Desafio da semana - at the end of the page and collapsible */}
+            {questCollapsed ? (
+              <section
+                style={{
+                  marginTop: "20px",
+                  padding: "12px 18px",
+                  border: "1px solid #4a2c2a",
+                  borderRadius: "7px",
+                  background: "linear-gradient(105deg, #2b1817 0, #1d1716 60%, #151615 100%)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "12px",
+                  flexWrap: "wrap",
+                }}
+                aria-label="Desafio da semana (recolhido)"
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <span className="quest-live" />
+                  <span style={{ fontSize: "10px", fontWeight: "700", color: "#f08b7f", letterSpacing: "0.8px" }}>
+                    DESAFIO DA SEMANA <span style={{ color: "#9c625c" }}>/</span> RANK NOVATO II
+                  </span>
+                  <span style={{ fontSize: "10px", color: "#e8cfc9" }}>
+                    <b>{weekSessions}</b> / 5 treinos
+                  </span>
+                  <div className="quest-progress-track" style={{ width: "90px" }}>
+                    <span style={{ width: `${Math.min((weekSessions / 5) * 100, 100)}%` }} />
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="cancel-btn"
+                  style={{ height: "26px", fontSize: "10px", padding: "0 8px", background: "#1c1717dd", borderColor: "#653a35", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                  onClick={() => setQuestCollapsed(false)}
+                >
+                  <ChevronDown size={13} /> Expandir
+                </button>
+              </section>
+            ) : (
+              <section className="fight-quest" aria-label="Desafio da semana" style={{ marginTop: "20px" }}>
+                <div className="quest-copy">
+                  <div className="quest-eyebrow">
+                    <span className="quest-live" /> DESAFIO DA SEMANA <span className="quest-separator">/</span> RANK NOVATO II
+                  </div>
+                  <h2>
+                    Mais um round.
+                    <br />
+                    <span>Mais perto do próximo nível.</span>
+                  </h2>
+                  <p>Seu ritmo está ficando forte. Complete a meta e desbloqueie o próximo marco.</p>
+                  <div className="quest-progress">
+                    <div className="quest-progress-track">
+                      <span style={{ width: `${Math.min((weekSessions / 5) * 100, 100)}%` }} />
+                    </div>
+                    <b>
+                      {weekSessions}
+                      <span> / 5 treinos</span>
+                    </b>
+                    <span className="quest-xp">+250 XP</span>
+                  </div>
+                </div>
+                <div style={{ position: "absolute", right: "16px", top: "13px", display: "flex", alignItems: "center", gap: "10px", zIndex: 3 }}>
+                  <div className="quest-stamp" style={{ position: "static" }}>
+                    <Flame size={13} /> META ATIVA
+                  </div>
+                  <button
+                    type="button"
+                    className="cancel-btn"
+                    style={{ height: "26px", fontSize: "10px", padding: "0 8px", background: "#1c1717dd", borderColor: "#653a35", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                    onClick={() => setQuestCollapsed(true)}
+                    title="Recolher desafio"
+                  >
+                    <ChevronUp size={13} /> Recolher
+                  </button>
+                </div>
+              </section>
+            )}
           </section>
-        ) : (
+        ) : view === "Treinos" ? (
           <section className="content sessions-content">
             <div className="welcome-row">
               <div>
@@ -449,14 +556,24 @@ export function RoundLogger() {
             <div className="list-toolbar">
               <div className="search-box">
                 <Search size={16} />
-                <input placeholder="Buscar sessões..." value={search} onChange={(event) => setSearch(event.target.value)} />
+                <input ref={searchInputRef} placeholder="Buscar sessões..." value={search} onChange={(event) => setSearch(event.target.value)} />
               </div>
-              <div className="filter-group">
-                {filters.map((item) => (
-                  <button key={item.id} type="button" onClick={() => setFilter(item.id)} className={filter === item.id ? "chosen" : ""}>
-                    {item.label}
-                  </button>
-                ))}
+              <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+                <div className="filter-group">
+                  {filters.map((item) => (
+                    <button key={item.id} type="button" onClick={() => setFilter(item.id)} className={filter === item.id ? "chosen" : ""}>
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  className="cancel-btn"
+                  style={{ display: "inline-flex", alignItems: "center", gap: "6px", height: "32px", padding: "0 10px", fontSize: "10px" }}
+                  onClick={() => setDialog({ type: "backup" })}
+                >
+                  <HardDrive size={13} /> Backup
+                </button>
               </div>
             </div>
             <div className="history-list">
@@ -476,12 +593,29 @@ export function RoundLogger() {
                   <div className="empty-icon">
                     <FolderOpen size={19} />
                   </div>
-                  <b>Nenhuma sessão encontrada</b>
-                  <span>Ajuste a busca ou registre um treino novo.</span>
+                  <b>{sessions.length === 0 ? "Seu histórico está vazio" : "Nenhuma sessão encontrada"}</b>
+                  <span>
+                    {sessions.length === 0
+                      ? "Os treinos ficam salvos no cache deste navegador (localStorage)."
+                      : "Ajuste a busca ou registre um treino novo."}
+                  </span>
                   {search || filter !== "all" ? (
                     <button type="button" onClick={() => { setSearch(""); setFilter("all"); }}>
                       Limpar busca e filtros
                     </button>
+                  ) : sessions.length === 0 ? (
+                    <div style={{ display: "flex", gap: "10px", marginTop: "12px", flexWrap: "wrap", justifyContent: "center" }}>
+                      <button type="button" onClick={() => openCreate()}>
+                        <Plus size={15} /> Adicionar treino
+                      </button>
+                      <button
+                        type="button"
+                        style={{ color: "#a5a99f" }}
+                        onClick={() => setDialog({ type: "backup" })}
+                      >
+                        <Upload size={14} /> Importar backup
+                      </button>
+                    </div>
                   ) : (
                     <button type="button" onClick={() => openCreate()}>
                       <Plus size={15} /> Adicionar treino
@@ -491,11 +625,33 @@ export function RoundLogger() {
               )}
             </div>
           </section>
+        ) : (
+          <ExerciseTypesView />
         )}
       </main>
       {dialog?.type === "create" && <SessionEditor date={dialog.date} onClose={() => setDialog(null)} onSave={saveSession} />}
       {dialog?.type === "edit" && <SessionEditor key={dialog.session.id} session={dialog.session} date={dialog.session.date} onClose={() => setDialog(null)} onSave={saveSession} />}
       {dialog?.type === "share" && <ShareDialog session={dialog.session} onClose={() => setDialog(null)} />}
+      {dialog?.type === "profile" && (
+        <ProfileModal
+          profile={profile}
+          onClose={() => setDialog(null)}
+          onSave={(updated) => {
+            setProfile(updated)
+            saveProfile(updated)
+          }}
+        />
+      )}
+      {dialog?.type === "backup" && (
+        <BackupModal
+          sessionsCount={sessions.length}
+          onClose={() => setDialog(null)}
+          onImportSuccess={(updated, profileUpdated) => {
+            setSessions(updated)
+            if (profileUpdated) setProfile(loadProfile())
+          }}
+        />
+      )}
       {dialog?.type === "delete" && (
         <div className="modal-backdrop">
           <section className="modal confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-title">

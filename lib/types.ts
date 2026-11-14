@@ -1,7 +1,9 @@
 export const exerciseTypes = [
   "pad-work",
+  "clinch",
   "heavy-bag",
   "shadowboxing",
+  "cardio",
   "jump-rope",
   "burpees",
   "sparring",
@@ -44,8 +46,15 @@ export type PadWorkExercise = ExerciseBase & {
   combinations: Combination[]
 }
 
+export type ClinchExercise = ExerciseBase & {
+  type: "clinch"
+  rounds: number
+  durationMinutes: number
+  combinations: Combination[]
+}
+
 export type RoundExercise = ExerciseBase & {
-  type: "heavy-bag" | "shadowboxing" | "jump-rope"
+  type: "heavy-bag" | "shadowboxing" | "cardio" | "jump-rope"
   rounds: number
   durationMinutes: number
 }
@@ -63,7 +72,23 @@ export type SparringExercise = ExerciseBase & {
   intensity: SparringIntensity
 }
 
-export type Exercise = PadWorkExercise | RoundExercise | BurpeesExercise | SparringExercise
+export type Exercise = PadWorkExercise | ClinchExercise | RoundExercise | BurpeesExercise | SparringExercise
+
+export type ExerciseTypeCategory = "combination" | "rounds" | "reps" | "sparring"
+
+export type ExerciseTypeDefinition = {
+  id: string
+  name: string
+  description: string
+  category: ExerciseTypeCategory
+  defaultName: string
+  defaultRounds?: number
+  defaultDuration?: number
+  defaultSets?: number
+  defaultReps?: number
+  defaultIntensity?: SparringIntensity
+  isCustom?: boolean
+}
 
 export type Session = {
   id: string
@@ -73,3 +98,10 @@ export type Session = {
   notes?: string
   exercises: Exercise[]
 }
+
+export type UserProfile = {
+  name: string
+  subtitle?: string
+  avatarUrl?: string
+}
+

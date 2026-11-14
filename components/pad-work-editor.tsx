@@ -1,20 +1,24 @@
 import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react"
 import { useState } from "react"
 
-import { customTechnique, presetTechnique, techniqueGroups } from "@/lib/techniques"
+import { customTechnique, getTechniqueGroupsForType, presetTechnique } from "@/lib/techniques"
 import { createId, moveItem } from "@/lib/sessions"
-import type { Combination, PadWorkExercise, Technique } from "@/lib/types"
+import type { ClinchExercise, Combination, PadWorkExercise, Technique } from "@/lib/types"
+
+type CombinationExercise = PadWorkExercise | ClinchExercise
 
 type PadWorkEditorProps = {
-  exercise: PadWorkExercise
-  onChange: (exercise: PadWorkExercise) => void
+  exercise: CombinationExercise
+  onChange: (exercise: CombinationExercise) => void
 }
 
 export function PadWorkEditor({ exercise, onChange }: PadWorkEditorProps) {
   const [custom, setCustom] = useState<Record<string, string>>({})
+  const isClinch = exercise.type === "clinch"
+  const availableGroups = getTechniqueGroupsForType(exercise.type)
 
   function updateCombinations(combinations: Combination[]) {
-    onChange({ ...exercise, combinations })
+    onChange({ ...exercise, combinations } as CombinationExercise)
   }
 
   function updateCombination(id: string, combination: Combination) {
@@ -25,17 +29,33 @@ export function PadWorkEditor({ exercise, onChange }: PadWorkEditorProps) {
     updateCombination(combination.id, { ...combination, techniques: [...combination.techniques, technique] })
   }
 
+  function defaultNewCombo(): Combination {
+    return isClinch
+      ? {
+          id: createId(),
+          techniques: [presetTechnique("clinch-plum"), presetTechnique("clinch-joelhada-reta")],
+        }
+      : {
+          id: createId(),
+          techniques: [presetTechnique("jab"), presetTechnique("direto")],
+        }
+  }
+
   return (
     <div className="combo-board">
       <div className="builder-title">
         <span>
           COMBINAÇÕES <i>{exercise.combinations.length}</i>
         </span>
-        <span>SEQUÊNCIA DE GOLPES</span>
+        <span>{isClinch ? "SEQUÊNCIA NO CORPO A CORPO" : "SEQUÊNCIA DE GOLPES"}</span>
       </div>
       {exercise.combinations.length === 0 && (
         <div className="combo-card empty-combo-card">
-          <p className="combo-empty">Nenhuma combinação ainda. Toque em &quot;Nova combinação&quot; para definir a sequência de golpes.</p>
+          <p className="combo-empty">
+            {isClinch
+              ? "Nenhuma sequência de clinche ainda. Toque em 'Nova combinação' para montar a pegada e os golpes."
+              : "Nenhuma combinação ainda. Toque em 'Nova combinação' para definir a sequência de golpes."}
+          </p>
         </div>
       )}
       {exercise.combinations.map((combination, index) => {
@@ -43,7 +63,7 @@ export function PadWorkEditor({ exercise, onChange }: PadWorkEditorProps) {
         return (
           <section key={combination.id} className={`combo-card ${combination.techniques.length === 0 ? "invalid" : ""}`}>
             <div className="combo-toolbar">
-              <b>COMBO {String(index + 1).padStart(2, "0")}</b>
+              <b>{isClinch ? `COMBO CLINCHE ${String(index + 1).padStart(2, "0")}` : `COMBO ${String(index + 1).padStart(2, "0")}`}</b>
               <div className="draft-move">
                 <button
                   type="button"
@@ -71,7 +91,7 @@ export function PadWorkEditor({ exercise, onChange }: PadWorkEditorProps) {
                 <Trash2 size={13} />
               </button>
             </div>
-            {combination.techniques.length === 0 && <p className="combo-empty">Adicione pelo menos um golpe.</p>}
+            {combination.techniques.length === 0 && <p className="combo-empty">Adicione pelo menos um golpe ou pegada.</p>}
             <ol className="tech-list">
               {combination.techniques.map((technique, techniqueIndex) => (
                 <li key={technique.id} className="tech-row">
@@ -127,15 +147,15 @@ export function PadWorkEditor({ exercise, onChange }: PadWorkEditorProps) {
             <div className="combo-add-row">
               <select
                 value=""
-                aria-label={`Adicionar golpe à combinação ${index + 1}`}
+                aria-label={`Adicionar técnica à combinação ${index + 1}`}
                 onChange={(event) => {
                   const presetId = event.target.value
                   if (!presetId) return
                   addTechnique(combination, presetTechnique(presetId))
                 }}
               >
-                <option value="">Adicionar golpe</option>
-                {techniqueGroups.map((group) => (
+                <option value="">{isClinch ? "Adicionar golpe / pegada" : "Adicionar golpe"}</option>
+                {availableGroups.map((group) => (
                   <optgroup key={group.label} label={group.label}>
                     {group.techniques.map((technique) => (
                       <option key={technique.id} value={technique.id}>
@@ -149,7 +169,7 @@ export function PadWorkEditor({ exercise, onChange }: PadWorkEditorProps) {
             <div className="combo-add-row">
               <input
                 value={customValue}
-                placeholder="Golpe personalizado"
+                placeholder={isClinch ? "Golpe ou pegada personalizada (ex.: Joelhada no fígado)" : "Golpe personalizado (ex.: Overhand)"}
                 aria-label={`Golpe personalizado na combinação ${index + 1}`}
                 onChange={(event) => setCustom((current) => ({ ...current, [combination.id]: event.target.value }))}
                 onKeyDown={(event) => {
@@ -179,14 +199,9 @@ export function PadWorkEditor({ exercise, onChange }: PadWorkEditorProps) {
       <button
         type="button"
         className="add-link"
-        onClick={() =>
-          updateCombinations([
-            ...exercise.combinations,
-            { id: createId(), techniques: [presetTechnique("jab"), presetTechnique("cross")] },
-          ])
-        }
+        onClick={() => updateCombinations([...exercise.combinations, defaultNewCombo()])}
       >
-        <Plus size={13} /> Nova combinação
+        <Plus size={13} /> {isClinch ? "Nova combinação de clinche" : "Nova combinação"}
       </button>
     </div>
   )

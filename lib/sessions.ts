@@ -46,7 +46,7 @@ export function createExercise(type: ExerciseType): Exercise {
     case "pad-work":
       return {
         id,
-        type,
+        type: "pad-work",
         name: "Manoplas — combinações",
         rounds: 5,
         durationMinutes: 3,
@@ -54,28 +54,50 @@ export function createExercise(type: ExerciseType): Exercise {
         combinations: [
           {
             id: createId(),
-            techniques: [presetTechnique("jab"), presetTechnique("cross"), presetTechnique("lead-hook")],
+            techniques: [presetTechnique("jab"), presetTechnique("direto"), presetTechnique("cruzado-frente")],
+          },
+        ],
+      }
+    case "clinch":
+      return {
+        id,
+        type: "clinch",
+        name: "Clinche — pegada e joelhos",
+        rounds: 4,
+        durationMinutes: 3,
+        done: false,
+        combinations: [
+          {
+            id: createId(),
+            techniques: [
+              presetTechnique("clinch-plum"),
+              presetTechnique("clinch-joelhada-reta"),
+              presetTechnique("clinch-cotovelada-curta"),
+            ],
           },
         ],
       }
     case "heavy-bag":
-      return { id, type, name: "Saco pesado", rounds: 3, durationMinutes: 3, done: false }
+      return { id, type: "heavy-bag", name: "Saco pesado", rounds: 3, durationMinutes: 3, done: false }
     case "shadowboxing":
-      return { id, type, name: "Sombra", rounds: 3, durationMinutes: 3, done: false }
+      return { id, type: "shadowboxing", name: "Sombra", rounds: 3, durationMinutes: 3, done: false }
+    case "cardio":
     case "jump-rope":
-      return { id, type, name: "Corda", rounds: 1, durationMinutes: 10, done: false }
+      return { id, type: "cardio", name: "Cardio", rounds: 1, durationMinutes: 10, done: false }
     case "burpees":
-      return { id, type, name: "Burpees", sets: 3, reps: 10, done: false }
+      return { id, type: "burpees", name: "Burpees", sets: 3, reps: 10, done: false }
     case "sparring":
       return {
         id,
-        type,
+        type: "sparring",
         name: "Sparring técnico",
         rounds: 3,
         durationMinutes: 3,
         intensity: "light",
         done: false,
       }
+    default:
+      return { id, type, name: "Exercício", rounds: 3, durationMinutes: 3, done: false }
   }
 }
 
@@ -150,9 +172,9 @@ export function isExercise(value: unknown): value is Exercise {
   if (!isRecord(value) || typeof value.id !== "string" || typeof value.name !== "string" || typeof value.done !== "boolean") {
     return false
   }
-  if (typeof value.type !== "string" || !exerciseTypes.includes(value.type as ExerciseType)) return false
+  if (typeof value.type !== "string") return false
   if (value.type === "burpees") return typeof value.sets === "number" && typeof value.reps === "number"
-  if (value.type === "pad-work") {
+  if (value.type === "pad-work" || value.type === "clinch") {
     return typeof value.rounds === "number" && typeof value.durationMinutes === "number" && Array.isArray(value.combinations) && value.combinations.every(isCombination)
   }
   if (value.type === "sparring") {
@@ -178,9 +200,9 @@ export const seed: Session[] = [
   {
     id: "s1",
     date: "2026-11-12",
-    title: "Muay Thai · técnica e clinch",
+    title: "Muay Thai · técnica e clinche",
     kind: "MUAY THAI",
-    notes: "Manter a guarda alta depois do chute. Trabalhar saída pelo lado esquerdo.",
+    notes: "Manter a guarda alta depois do chute. Trabalhar saída pelo lado esquerdo e postura ereta no clinche.",
     exercises: [
       {
         id: "e1",
@@ -190,10 +212,31 @@ export const seed: Session[] = [
         durationMinutes: 3,
         done: true,
         combinations: [
-          combo("c1", [hit("t1", "Jab"), hit("t2", "Cross"), hit("t3", "Lead Hook"), hit("t4", "Rear Low Kick")]),
-          combo("c2", [hit("t5", "Jab"), hit("t6", "Cross"), hit("t7", "Rear Knee")]),
-          combo("c3", [hit("t8", "Lead Hook"), hit("t9", "Rear Hook"), hit("t10", "Cross")]),
+          combo("c1", [hit("t1", "Jab"), hit("t2", "Direto"), hit("t3", "Cruzado frontal"), hit("t4", "Low kick posterior")]),
+          combo("c2", [hit("t5", "Jab"), hit("t6", "Direto"), hit("t7", "Joelhada posterior")]),
+          combo("c3", [hit("t8", "Cruzado frontal"), hit("t9", "Cruzado posterior"), hit("t10", "Direto")]),
         ],
+      },
+      {
+        id: "e-clinch-1",
+        type: "clinch",
+        name: "Clinche — pegada e joelhos",
+        rounds: 3,
+        durationMinutes: 3,
+        done: true,
+        combinations: [
+          combo("c-clinch-1", [
+            hit("t-c1", "Puxada de nuca (Plum)"),
+            hit("t-c2", "Joelhada reta no plexo"),
+            hit("t-c3", "Cotovelada curta horizontal"),
+          ]),
+          combo("c-clinch-2", [
+            hit("t-c4", "Travamento de braço"),
+            hit("t-c5", "Soco na linha de cintura"),
+            hit("t-c6", "Joelhada na costela"),
+          ]),
+        ],
+        notes: "Postura ereta. Fechar cotovelos para proteger as costelas.",
       },
       { id: "e2", type: "heavy-bag", name: "Saco pesado", rounds: 4, durationMinutes: 3, done: true },
       {
@@ -214,7 +257,7 @@ export const seed: Session[] = [
     title: "Boxe · volume e defesa",
     kind: "BOXE",
     exercises: [
-      { id: "e4", type: "jump-rope", name: "Corda", rounds: 1, durationMinutes: 10, done: true },
+      { id: "e4", type: "cardio", name: "Cardio — corda e tiros", rounds: 1, durationMinutes: 10, done: true },
       { id: "e5", type: "shadowboxing", name: "Sombra — defesa", rounds: 4, durationMinutes: 3, done: true },
     ],
   },
@@ -241,7 +284,7 @@ export const seed: Session[] = [
         rounds: 5,
         durationMinutes: 3,
         done: true,
-        combinations: [combo("c4", [hit("t11", "Jab"), hit("t12", "Cross"), hit("t13", "Rear Low Kick")])],
+        combinations: [combo("c4", [hit("t11", "Jab"), hit("t12", "Direto"), hit("t13", "Low kick posterior")])],
       },
     ],
   },

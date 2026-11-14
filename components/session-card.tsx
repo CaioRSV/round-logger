@@ -53,7 +53,7 @@ export function SessionCard({ session, onToggle, onShare, onEdit, onDelete }: Se
                 <ExerciseIcon type={exercise.type} size={14} />
                 <span className="exercise-name">{exercise.name}</span>
                 <span className="exercise-detail">{formatDetail(exercise)}</span>
-                {exercise.type === "pad-work" && exercise.combinations.length > 0 && (
+                {(exercise.type === "pad-work" || exercise.type === "clinch") && exercise.combinations.length > 0 && (
                   <div className="exercise-combos">
                     {exercise.combinations.map((c, i) => (
                       <span key={c.id} className="combo-chip-item">
