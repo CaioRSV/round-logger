@@ -9,7 +9,6 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  ChevronUp,
   Clock3,
   Download,
   Dumbbell,
@@ -28,6 +27,8 @@ import {
 import { BackupModal } from "@/components/backup-modal"
 import { ExerciseTypesView } from "@/components/exercise-types-view"
 import { ProfileModal } from "@/components/profile-modal"
+import { RankDebugSelect, previewWorkouts } from "@/components/rank-debug"
+import { RankQuest } from "@/components/rank-quest"
 import { SessionCard } from "@/components/session-card"
 import { SessionEditor } from "@/components/session-editor"
 import { ShareDialog } from "@/components/share-dialog"
@@ -53,6 +54,7 @@ import {
   trainingDaysInMonth,
   trainingStreak,
 } from "@/lib/sessions"
+import { getRankProgress, type RankDefinition } from "@/lib/ranks"
 import type { Session, SessionStatus, UserProfile } from "@/lib/types"
 import { hasCombinations } from "@/lib/types"
 
@@ -108,6 +110,7 @@ export function RoundLogger() {
   const [sessions, setSessions] = useState<Session[]>([])
   const [profile, setProfile] = useState<UserProfile>(defaultProfile)
   const [questCollapsed, setQuestCollapsed] = useState(false)
+  const [debugRank, setDebugRank] = useState<RankDefinition | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [hydrated, setHydrated] = useState(false)
   const [month, setMonth] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1))
@@ -142,6 +145,7 @@ export function RoundLogger() {
     .sort((a, b) => b.date.localeCompare(a.date) || a.title.localeCompare(b.title))
     .filter((session) => (filter === "all" || getStatus(session) === filter) && matchesQuery(session, search))
   const completed = sessions.filter((session) => getStatus(session) !== "planned").length
+  const rankProgress = debugRank ? getRankProgress(previewWorkouts(debugRank), debugRank) : getRankProgress(completed)
   const weekSessions = sessionsThisWeek(sessions, today)
   const streak = trainingStreak(sessions, today)
   const monthDays = trainingDaysInMonth(sessions, month)
@@ -462,83 +466,14 @@ export function RoundLogger() {
                 <ArrowRight size={15} />
               </button>
             </div>
-            {/* Desafio da semana - at the end of the page and collapsible */}
-            {questCollapsed ? (
-              <section
-                style={{
-                  marginTop: "20px",
-                  padding: "12px 18px",
-                  border: "1px solid #4a2c2a",
-                  borderRadius: "7px",
-                  background: "linear-gradient(105deg, #2b1817 0, #1d1716 60%, #151615 100%)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: "12px",
-                  flexWrap: "wrap",
-                }}
-                aria-label="Desafio da semana (recolhido)"
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <span className="quest-live" />
-                  <span style={{ fontSize: "10px", fontWeight: "700", color: "#f08b7f", letterSpacing: "0.8px" }}>
-                    DESAFIO DA SEMANA <span style={{ color: "#9c625c" }}>/</span> RANK NOVATO II
-                  </span>
-                  <span style={{ fontSize: "10px", color: "#e8cfc9" }}>
-                    <b>{weekSessions}</b> / 5 treinos
-                  </span>
-                  <div className="quest-progress-track" style={{ width: "90px" }}>
-                    <span style={{ width: `${Math.min((weekSessions / 5) * 100, 100)}%` }} />
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className="cancel-btn"
-                  style={{ height: "26px", fontSize: "10px", padding: "0 8px", background: "#1c1717dd", borderColor: "#653a35", display: "inline-flex", alignItems: "center", gap: "4px" }}
-                  onClick={() => setQuestCollapsed(false)}
-                >
-                  <ChevronDown size={13} /> Expandir
-                </button>
-              </section>
-            ) : (
-              <section className="fight-quest" aria-label="Desafio da semana" style={{ marginTop: "20px" }}>
-                <div className="quest-copy">
-                  <div className="quest-eyebrow">
-                    <span className="quest-live" /> DESAFIO DA SEMANA <span className="quest-separator">/</span> RANK NOVATO II
-                  </div>
-                  <h2>
-                    Mais um round.
-                    <br />
-                    <span>Mais perto do próximo nível.</span>
-                  </h2>
-                  <p>Seu ritmo está ficando forte. Complete a meta e desbloqueie o próximo marco.</p>
-                  <div className="quest-progress">
-                    <div className="quest-progress-track">
-                      <span style={{ width: `${Math.min((weekSessions / 5) * 100, 100)}%` }} />
-                    </div>
-                    <b>
-                      {weekSessions}
-                      <span> / 5 treinos</span>
-                    </b>
-                    <span className="quest-xp">+250 XP</span>
-                  </div>
-                </div>
-                <div style={{ position: "absolute", right: "16px", top: "13px", display: "flex", alignItems: "center", gap: "10px", zIndex: 3 }}>
-                  <div className="quest-stamp" style={{ position: "static" }}>
-                    <Flame size={13} /> META ATIVA
-                  </div>
-                  <button
-                    type="button"
-                    className="cancel-btn"
-                    style={{ height: "26px", fontSize: "10px", padding: "0 8px", background: "#1c1717dd", borderColor: "#653a35", display: "inline-flex", alignItems: "center", gap: "4px" }}
-                    onClick={() => setQuestCollapsed(true)}
-                    title="Recolher desafio"
-                  >
-                    <ChevronUp size={13} /> Recolher
-                  </button>
-                </div>
-              </section>
-            )}
+            {/* Rank - at the end of the page and collapsible */}
+            <RankQuest
+              progress={rankProgress}
+              collapsed={questCollapsed}
+              onToggle={() => setQuestCollapsed((current) => !current)}
+            />
+            {/* DEBUG: comente a linha abaixo para esconder o seletor de rank */}
+            {/* <RankDebugSelect value={debugRank} onChange={setDebugRank} /> */}
           </section>
         ) : view === "Treinos" ? (
           <section className="content sessions-content">

@@ -1,409 +1,209 @@
+// Sistema de ranks: 4 ranks maiores, cada um com níveis em algarismos romanos.
+// O progresso é medido em treinos registrados (sessões concluídas ou parciais).
+// Os intervalos entre ranks crescem aos poucos (5 → 40 treinos), sem ficar absurdos.
+
+export type MajorRank = "novato" | "intermediario" | "avancado" | "lutador"
+
+export interface RankTheme {
+  name: string
+  cardBg: string
+  cardBorder: string
+  boxGlow: string
+  dotPattern: string
+  eyebrowText: string
+  liveDotColor: string
+  liveDotShadow: string
+  separatorColor: string
+  headingText: string
+  headingAccent: string
+  textColor: string
+  progressTrackBg: string
+  progressFill: string
+  progressGlow: string
+  stampBg: string
+  stampBorder: string
+  stampText: string
+  badgeBg: string
+  badgeBorder: string
+  badgeText: string
+}
+
 export interface RankDefinition {
   id: string
   name: string
+  major: MajorRank
+  majorName: string
+  level: number // 1 = I, 2 = II...
+  tierNumber: number // 1 a 14, posição global
   minWorkouts: number
-  maxWorkouts: number | null
-  tierNumber: number // 1 to 10
-  tierCategory: "novato" | "amador" | "experiente" | "lutador" | "lenda"
-  title: string
-  subtitle: string
-  quote: string
-  xpReward: number
-  theme: {
-    name: string
-    cardBg: string
-    cardBorder: string
-    boxGlow: string
-    eyebrowText: string
-    liveDotColor: string
-    liveDotShadow: string
-    separatorColor: string
-    headingAccent: string
-    textColor: string
-    progressTrackBg: string
-    progressFill: string
-    progressGlow: string
-    xpBg: string
-    xpBorder: string
-    xpText: string
-    stampBg: string
-    stampBorder: string
-    stampText: string
-    badgeBg: string
-    badgeBorder: string
-    badgeText: string
+  maxWorkouts: number | null // null = último rank
+  theme: RankTheme
+}
+
+/* ------------------------------------------------------------------ */
+/* Paletas: cada rank maior tem sua cor; o nível interpola de "low"   */
+/* (nível I) até "high" (último nível), ficando mais intenso.         */
+/* ------------------------------------------------------------------ */
+
+type PaletteStop = {
+  spot: string // brilho radial do canto
+  bg: string // fundo principal
+  border: string
+  accent: string // eyebrow, destaque do título, ponto ao vivo
+  text: string
+  track: string
+  fill: string
+  heading: string
+}
+
+type Palette = { name: string; low: PaletteStop; high: PaletteStop; glowStart: number; glowEnd: number }
+
+const palettes: Record<MajorRank, Palette> = {
+  // Cinza aço: fosco, discreto
+  novato: {
+    name: "Aço fosco",
+    glowStart: 0,
+    glowEnd: 12,
+    low: { spot: "#272b27", bg: "#1b1c1b", border: "#2f342e", accent: "#9aa395", text: "#9aa095", track: "#292e28", fill: "#8e9687", heading: "#e3e6e0" },
+    high: { spot: "#2d3438", bg: "#1d2124", border: "#3e474c", accent: "#bac6cd", text: "#a9b2b7", track: "#2e363b", fill: "#c6d1d7", heading: "#eef2f4" },
+  },
+  // Azul cobalto
+  intermediario: {
+    name: "Azul cobalto",
+    glowStart: 14,
+    glowEnd: 24,
+    low: { spot: "#1a2c48", bg: "#161c26", border: "#283a57", accent: "#6f9be0", text: "#9eabc0", track: "#22314a", fill: "#79a6f0", heading: "#eaf1ff" },
+    high: { spot: "#1f3f74", bg: "#172136", border: "#3a5b94", accent: "#93bcff", text: "#b6c6df", track: "#2a426e", fill: "#a9cbff", heading: "#f3f7ff" },
+  },
+  // Vermelho combate
+  avancado: {
+    name: "Vermelho combate",
+    glowStart: 20,
+    glowEnd: 32,
+    low: { spot: "#4a1c1a", bg: "#2b1716", border: "#562b28", accent: "#e6766a", text: "#ba9b95", track: "#4a2623", fill: "#f08a78", heading: "#fff0eb" },
+    high: { spot: "#821a15", bg: "#461413", border: "#a02b22", accent: "#ff6656", text: "#dbb8b1", track: "#6a201b", fill: "#ffa184", heading: "#fff4f0" },
+  },
+  // Dourado premium: o rank final (ouro mais saturado, brilho mais forte)
+  lutador: {
+    name: "Ouro",
+    glowStart: 34,
+    glowEnd: 56,
+    low: { spot: "#6b4d0e", bg: "#2a1f0a", border: "#b8892a", accent: "#ffc93c", text: "#e2d2a8", track: "#4a3509", fill: "#ffcf4a", heading: "#fff4cf" },
+    high: { spot: "#9a6f12", bg: "#3a2a0b", border: "#f2c445", accent: "#ffe27a", text: "#f2e6c4", track: "#5e430b", fill: "#ffe98f", heading: "#fffaea" },
+  },
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+  const value = Number.parseInt(hex.slice(1), 16)
+  return [(value >> 16) & 255, (value >> 8) & 255, value & 255]
+}
+
+function mix(a: string, b: string, t: number): string {
+  const ca = hexToRgb(a)
+  const cb = hexToRgb(b)
+  return `#${ca
+    .map((channel, index) => Math.round(channel + (cb[index] - channel) * t).toString(16).padStart(2, "0"))
+    .join("")}`
+}
+
+function buildTheme(major: MajorRank, level: number, levels: number): RankTheme {
+  const palette = palettes[major]
+  const t = levels <= 1 ? 1 : (level - 1) / (levels - 1)
+  const c = Object.fromEntries(
+    (Object.keys(palette.low) as (keyof PaletteStop)[]).map((key) => [key, mix(palette.low[key], palette.high[key], t)]),
+  ) as PaletteStop
+  const glow = Math.round(palette.glowStart + (palette.glowEnd - palette.glowStart) * t)
+  const spotSize = Math.round(40 + 14 * t)
+  const shine = major === "lutador" ? `#ffe9a0${Math.round(0x40 + 0x30 * t).toString(16)}` : "#ffffff0a"
+
+  return {
+    name: `${palette.name} ${toRoman(level)}`,
+    cardBg: `radial-gradient(ellipse at 15% 15%, ${c.spot} 0, transparent ${spotSize}%), linear-gradient(105deg, ${c.bg} 0, ${mix(c.bg, "#151614", 0.45)} 51%, #121311 100%)`,
+    cardBorder: c.border,
+    boxGlow:
+      major === "lutador"
+        ? `0 0 ${glow}px ${c.border}66, 0 0 ${Math.round(glow / 3)}px ${c.accent}33, inset 0 1px ${shine}, inset 0 0 24px ${c.spot}55`
+        : glow > 0
+          ? `0 0 ${glow}px ${c.border}44, inset 0 1px ${shine}`
+          : `inset 0 1px ${shine}`,
+    dotPattern: c.accent,
+    eyebrowText: c.accent,
+    liveDotColor: c.accent,
+    liveDotShadow: `0 0 ${6 + Math.round(10 * t)}px ${c.accent}aa`,
+    separatorColor: mix(c.border, c.accent, 0.35),
+    headingText: c.heading,
+    headingAccent: mix(c.accent, c.heading, 0.15),
+    textColor: c.text,
+    progressTrackBg: c.track,
+    progressFill: c.fill,
+    progressGlow: major === "novato" ? "none" : `0 0 ${8 + Math.round(8 * t)}px ${c.fill}66`,
+    stampBg: mix(c.bg, "#000000", 0.15),
+    stampBorder: c.border,
+    stampText: c.accent,
+    badgeBg: mix(c.bg, c.accent, 0.08),
+    badgeBorder: c.border,
+    badgeText: mix(c.accent, c.heading, 0.2),
   }
 }
 
-export const RANKS: RankDefinition[] = [
-  {
-    id: "novato-1",
-    name: "Novato I",
-    minWorkouts: 0,
-    maxWorkouts: 4,
-    tierNumber: 1,
-    tierCategory: "novato",
-    title: "Primeiros passos no tatame.",
-    subtitle: "O começo da sua disciplina.",
-    quote: "Todo guerreiro começou no round zero. Crie o hábito da consistência.",
-    xpReward: 100,
-    theme: {
-      name: "Matte Slate (Fosco)",
-      cardBg: "linear-gradient(105deg, #1b1c1b 0, #161816 51%, #121312 100%)",
-      cardBorder: "#2e332d",
-      boxGlow: "none",
-      eyebrowText: "#8e948a",
-      liveDotColor: "#7e8579",
-      liveDotShadow: "0 0 6px #7e857955",
-      separatorColor: "#474d44",
-      headingAccent: "#a9b0a4",
-      textColor: "#9aa095",
-      progressTrackBg: "#292e28",
-      progressFill: "#8e9687",
-      progressGlow: "none",
-      xpBg: "#222521",
-      xpBorder: "#383f36",
-      xpText: "#9da596",
-      stampBg: "#1e211e",
-      stampBorder: "#383f36",
-      stampText: "#9da596",
-      badgeBg: "#1c1e1b",
-      badgeBorder: "#353b32",
-      badgeText: "#9ca395",
-    },
-  },
-  {
-    id: "novato-2",
-    name: "Novato II",
-    minWorkouts: 5,
-    maxWorkouts: 9,
-    tierNumber: 2,
-    tierCategory: "novato",
-    title: "Criando ritmo e postura.",
-    subtitle: "O hábito está se formando.",
-    quote: "A guarda já não desce tão fácil. Seus músculos estão entendendo o recado.",
-    xpReward: 150,
-    theme: {
-      name: "Matte Iron & Rust (Semi-fosco)",
-      cardBg: "radial-gradient(ellipse at 15% 15%, #2d201e 0, transparent 40%), linear-gradient(105deg, #221a19 0, #1a1716 51%, #131413 100%)",
-      cardBorder: "#3c2a27",
-      boxGlow: "none",
-      eyebrowText: "#b38c85",
-      liveDotColor: "#a86b62",
-      liveDotShadow: "0 0 6px #a86b6255",
-      separatorColor: "#5e3e39",
-      headingAccent: "#d49b91",
-      textColor: "#ab9692",
-      progressTrackBg: "#3b2825",
-      progressFill: "#ba8277",
-      progressGlow: "none",
-      xpBg: "#2b1c1a",
-      xpBorder: "#52332e",
-      xpText: "#cfa198",
-      stampBg: "#261a18",
-      stampBorder: "#4f332f",
-      stampText: "#cfa198",
-      badgeBg: "#241a18",
-      badgeBorder: "#4a302c",
-      badgeText: "#cfa198",
-    },
-  },
-  {
-    id: "amador-1",
-    name: "Amador I",
-    minWorkouts: 10,
-    maxWorkouts: 19,
-    tierNumber: 3,
-    tierCategory: "amador",
-    title: "Mais um round.",
-    subtitle: "Mais perto do próximo nível.",
-    quote: "A técnica começa a fluir com naturalidade. A força encontra o compasso certo.",
-    xpReward: 250,
-    theme: {
-      name: "Crimson Ember (Início do Vermelho)",
-      cardBg: "radial-gradient(ellipse at 15% 15%, #461c1a 0, transparent 44%), linear-gradient(105deg, #2b1716 0, #1e1716 51%, #151614 100%)",
-      cardBorder: "#532b28",
-      boxGlow: "inset 0 1px #ffffff08",
-      eyebrowText: "#e2786d",
-      liveDotColor: "#e65a4e",
-      liveDotShadow: "0 0 8px #e65a4e77",
-      separatorColor: "#7e3c36",
-      headingAccent: "#e6766a",
-      textColor: "#ba9b95",
-      progressTrackBg: "#4a2623",
-      progressFill: "#d4f36a",
-      progressGlow: "0 0 8px #d4f36a33",
-      xpBg: "#2d1a18",
-      xpBorder: "#68322c",
-      xpText: "#e68478",
-      stampBg: "#281716",
-      stampBorder: "#68322c",
-      stampText: "#f08579",
-      badgeBg: "#271817",
-      badgeBorder: "#5e2d27",
-      badgeText: "#ea8579",
-    },
-  },
-  {
-    id: "amador-2",
-    name: "Amador II",
-    minWorkouts: 20,
-    maxWorkouts: 34,
-    tierNumber: 4,
-    tierCategory: "amador",
-    title: "Fluidez e precisão no combate.",
-    subtitle: "Seu ritmo agora é constante.",
-    quote: "Sua respiração nos rounds mais pesados já não vacila. Foco na precisão.",
-    xpReward: 350,
-    theme: {
-      name: "Vibrant Crimson (Vermelho Combate)",
-      cardBg: "radial-gradient(ellipse at 15% 15%, #55201d 0, transparent 44%), linear-gradient(105deg, #301918 0, #211918 51%, #181917 100%)",
-      cardBorder: "#632d29",
-      boxGlow: "0 0 20px #55201d22, inset 0 1px #ffffff0a",
-      eyebrowText: "#f08b7f",
-      liveDotColor: "#ef675e",
-      liveDotShadow: "0 0 10px #ef675e99",
-      separatorColor: "#9c625c",
-      headingAccent: "#ef8177",
-      textColor: "#c2a7a1",
-      progressTrackBg: "#593431",
-      progressFill: "#d4f36a",
-      progressGlow: "0 0 10px #d4f36a44",
-      xpBg: "#303a25",
-      xpBorder: "#68784955",
-      xpText: "#d4f36a",
-      stampBg: "#301817",
-      stampBorder: "#78332d",
-      stampText: "#ff8577",
-      badgeBg: "#2e1918",
-      badgeBorder: "#73332c",
-      badgeText: "#ff8b7e",
-    },
-  },
-  {
-    id: "experiente-1",
-    name: "Experiente I",
-    minWorkouts: 35,
-    maxWorkouts: 54,
-    tierNumber: 5,
-    tierCategory: "experiente",
-    title: "Potência, esquiva e timing.",
-    subtitle: "A disciplina superou a motivação.",
-    quote: "Dezenas de rounds acumulados. Seu reflexo responde antes mesmo do pensamento.",
-    xpReward: 500,
-    theme: {
-      name: "Deep Blood Ruby (Vermelho Intenso)",
-      cardBg: "radial-gradient(ellipse at 15% 15%, #6a1a18 0, transparent 46%), linear-gradient(105deg, #3d1514 0, #271413 51%, #191817 100%)",
-      cardBorder: "#7d2924",
-      boxGlow: "0 0 24px #6a1a182b, inset 0 1px #ffffff0d",
-      eyebrowText: "#ff8475",
-      liveDotColor: "#ff4d3d",
-      liveDotShadow: "0 0 12px #ff4d3dcc",
-      separatorColor: "#b24d45",
-      headingAccent: "#ff6f61",
-      textColor: "#cfaea8",
-      progressTrackBg: "#5b2420",
-      progressFill: "#d4f36a",
-      progressGlow: "0 0 12px #d4f36a55",
-      xpBg: "#3e1a17",
-      xpBorder: "#88332a",
-      xpText: "#ff9182",
-      stampBg: "#381715",
-      stampBorder: "#8a352c",
-      stampText: "#ff8475",
-      badgeBg: "#331614",
-      badgeBorder: "#853128",
-      badgeText: "#ff8a7c",
-    },
-  },
-  {
-    id: "experiente-2",
-    name: "Experiente II",
-    minWorkouts: 55,
-    maxWorkouts: 74,
-    tierNumber: 6,
-    tierCategory: "experiente",
-    title: "Resistência de aço e intenção.",
-    subtitle: "O peso do seu treino fala por você.",
-    quote: "Os rounds de manopla e sparring são parte da sua rotina natural. Mente inabalável.",
-    xpReward: 650,
-    theme: {
-      name: "Blood Flame (Carmesim Fogo)",
-      cardBg: "radial-gradient(ellipse at 15% 15%, #761816 0, transparent 48%), linear-gradient(105deg, #441413 0, #2b1312 51%, #1a1716 100%)",
-      cardBorder: "#912822",
-      boxGlow: "0 0 28px #76181635, inset 0 1px #ffffff12",
-      eyebrowText: "#ff8f82",
-      liveDotColor: "#ff3d2b",
-      liveDotShadow: "0 0 14px #ff3d2bdd",
-      separatorColor: "#c2544a",
-      headingAccent: "#ff7466",
-      textColor: "#d8b6b0",
-      progressTrackBg: "#661f1a",
-      progressFill: "#e4f884",
-      progressGlow: "0 0 12px #e4f88466",
-      xpBg: "#4a1915",
-      xpBorder: "#9e2f27",
-      xpText: "#ffa194",
-      stampBg: "#421613",
-      stampBorder: "#9e2f27",
-      stampText: "#ff8a7a",
-      badgeBg: "#3c1613",
-      badgeBorder: "#9e2f27",
-      badgeText: "#ff9080",
-    },
-  },
-  {
-    id: "experiente-3",
-    name: "Experiente III",
-    minWorkouts: 75,
-    maxWorkouts: 99,
-    tierNumber: 7,
-    tierCategory: "experiente",
-    title: "Na antecâmara dos Lutadores.",
-    subtitle: "Apenas um passo do nível máximo.",
-    quote: "Quase 100 treinos concluídos. Pouquíssimos chegam até aqui com essa constância.",
-    xpReward: 850,
-    theme: {
-      name: "Amber-Crimson Dusk (Transição de Elite)",
-      cardBg: "radial-gradient(ellipse at 15% 15%, #7c2214 0, transparent 48%), linear-gradient(105deg, #46190f 0, #2c1610 51%, #1b1612 100%)",
-      cardBorder: "#9c3c1f",
-      boxGlow: "0 0 30px #7c221440, inset 0 1px #ffffff14",
-      eyebrowText: "#ffa37a",
-      liveDotColor: "#ff541e",
-      liveDotShadow: "0 0 14px #ff541edd",
-      separatorColor: "#cb623b",
-      headingAccent: "#ff8b59",
-      textColor: "#ddbcb1",
-      progressTrackBg: "#682915",
-      progressFill: "#ffd152",
-      progressGlow: "0 0 12px #ffd15255",
-      xpBg: "#4a1f11",
-      xpBorder: "#a64923",
-      xpText: "#ffae85",
-      stampBg: "#421c10",
-      stampBorder: "#a64923",
-      stampText: "#ffa075",
-      badgeBg: "#3a190f",
-      badgeBorder: "#a64923",
-      badgeText: "#ffa478",
-    },
-  },
-  {
-    id: "lutador-1",
-    name: "Lutador",
-    minWorkouts: 100,
-    maxWorkouts: 149,
-    tierNumber: 8,
-    tierCategory: "lutador",
-    title: "A marca dos 100 rounds.",
-    subtitle: "Ouro forjado no combate diário.",
-    quote: "Centenas de rounds e gotas de suor. Você transcendeu a prática casual: você é um Lutador.",
-    xpReward: 1200,
-    theme: {
-      name: "Gold & Obsidian (Dourado & Preto Premium)",
-      cardBg: "radial-gradient(ellipse at 15% 15%, #4a3811 0, transparent 52%), linear-gradient(105deg, #241d0f 0, #191712 51%, #10100e 100%)",
-      cardBorder: "#8a6e26",
-      boxGlow: "0 0 32px #8a6e2644, inset 0 1px #ffd97828",
-      eyebrowText: "#f7d268",
-      liveDotColor: "#f7cb45",
-      liveDotShadow: "0 0 16px #f7cb45ee",
-      separatorColor: "#9c7c28",
-      headingAccent: "#fadc7d",
-      textColor: "#d8cdb4",
-      progressTrackBg: "#423211",
-      progressFill: "#fedb72",
-      progressGlow: "0 0 14px #fedb7288",
-      xpBg: "#38290a",
-      xpBorder: "#947625",
-      xpText: "#ffd86b",
-      stampBg: "#302409",
-      stampBorder: "#9e7e29",
-      stampText: "#fedb72",
-      badgeBg: "#2b2008",
-      badgeBorder: "#967827",
-      badgeText: "#fedb72",
-    },
-  },
-  {
-    id: "lutador-2",
-    name: "Lutador Pro",
-    minWorkouts: 150,
-    maxWorkouts: 199,
-    tierNumber: 9,
-    tierCategory: "lutador",
-    title: "Calma no olho do furacão.",
-    subtitle: "A maestria da alta pressão.",
-    quote: "Você já viu todo tipo de combinação e adversidade. A calma no tatame é sua assinatura.",
-    xpReward: 1600,
-    theme: {
-      name: "Imperial Gold & Carbon (Ouro Puro)",
-      cardBg: "radial-gradient(ellipse at 15% 15%, #594212 0, transparent 52%), linear-gradient(105deg, #2a200f 0, #1b1811 51%, #10100d 100%)",
-      cardBorder: "#a3822c",
-      boxGlow: "0 0 36px #a3822c55, inset 0 1px #ffe49435",
-      eyebrowText: "#ffe082",
-      liveDotColor: "#ffd54f",
-      liveDotShadow: "0 0 18px #ffd54fff",
-      separatorColor: "#bfa03e",
-      headingAccent: "#ffe899",
-      textColor: "#e0d6be",
-      progressTrackBg: "#4c380f",
-      progressFill: "#ffec99",
-      progressGlow: "0 0 16px #ffec9999",
-      xpBg: "#3d2a06",
-      xpBorder: "#b59030",
-      xpText: "#ffe082",
-      stampBg: "#362506",
-      stampBorder: "#bf9a34",
-      stampText: "#ffe28a",
-      badgeBg: "#2e1f05",
-      badgeBorder: "#b89433",
-      badgeText: "#ffe28a",
-    },
-  },
-  {
-    id: "lenda",
-    name: "Lenda dos Rounds",
-    minWorkouts: 200,
-    maxWorkouts: null,
-    tierNumber: 10,
-    tierCategory: "lenda",
-    title: "200+ sessões de pura glória.",
-    subtitle: "Patamar lendário dos esportes de combate.",
-    quote: "A história do seu corpo é escrita round a round. Um exemplo vivo de determinação.",
-    xpReward: 2500,
-    theme: {
-      name: "Mythic Celestial Gold (Ouro Platina)",
-      cardBg: "radial-gradient(ellipse at 15% 15%, #6a4f15 0, transparent 55%), linear-gradient(105deg, #332611 0, #1f1b13 51%, #0f0f0c 100%)",
-      cardBorder: "#c49f39",
-      boxGlow: "0 0 42px #c49f3966, inset 0 1px #fff0b850",
-      eyebrowText: "#ffec9e",
-      liveDotColor: "#ffe066",
-      liveDotShadow: "0 0 20px #ffe066ff",
-      separatorColor: "#d8b64e",
-      headingAccent: "#fff4bd",
-      textColor: "#ebe2cb",
-      progressTrackBg: "#573f0f",
-      progressFill: "#fff8d1",
-      progressGlow: "0 0 18px #fff8d1aa",
-      xpBg: "#452e04",
-      xpBorder: "#d4ad3d",
-      xpText: "#fff0a3",
-      stampBg: "#3e2903",
-      stampBorder: "#deb640",
-      stampText: "#fff0a3",
-      badgeBg: "#332203",
-      badgeBorder: "#d9b342",
-      badgeText: "#fff0a3",
-    },
-  },
+export function toRoman(value: number): string {
+  return ["", "I", "II", "III", "IV", "V", "VI"][value] ?? String(value)
+}
+
+/* ------------------------------------------------------------------ */
+/* Definição dos ranks                                                */
+/* ------------------------------------------------------------------ */
+
+type RankSeed = {
+  major: MajorRank
+  minWorkouts: number
+}
+
+const majorNames: Record<MajorRank, string> = {
+  novato: "Novato",
+  intermediario: "Intermediário",
+  avancado: "Avançado",
+  lutador: "Lutador",
+}
+
+// Intervalos: 5, 7, 8, 10, 12, 14, 16, 18, 20, 25, 30, 35, 40
+const seeds: RankSeed[] = [
+  { major: "novato", minWorkouts: 0 },
+  { major: "novato", minWorkouts: 5 },
+  { major: "intermediario", minWorkouts: 12 },
+  { major: "intermediario", minWorkouts: 20 },
+  { major: "intermediario", minWorkouts: 30 },
+  { major: "avancado", minWorkouts: 42 },
+  { major: "avancado", minWorkouts: 56 },
+  { major: "avancado", minWorkouts: 72 },
+  { major: "avancado", minWorkouts: 90 },
+  { major: "lutador", minWorkouts: 110 },
+  { major: "lutador", minWorkouts: 135 },
+  { major: "lutador", minWorkouts: 165 },
+  { major: "lutador", minWorkouts: 200 },
+  { major: "lutador", minWorkouts: 240 },
 ]
+
+export const RANKS: RankDefinition[] = seeds.map((seed, index) => {
+  const sameMajor = seeds.filter((item) => item.major === seed.major)
+  const level = sameMajor.indexOf(seed) + 1
+  const next = seeds[index + 1]
+  return {
+    id: `${seed.major}-${level}`,
+    name: `${majorNames[seed.major]} ${toRoman(level)}`,
+    major: seed.major,
+    majorName: majorNames[seed.major],
+    level,
+    tierNumber: index + 1,
+    minWorkouts: seed.minWorkouts,
+    maxWorkouts: next ? next.minWorkouts - 1 : null,
+    theme: buildTheme(seed.major, level, sameMajor.length),
+  }
+})
 
 export function getRankForWorkouts(workoutsCount: number): RankDefinition {
   for (let i = RANKS.length - 1; i >= 0; i--) {
-    const rank = RANKS[i]
-    if (workoutsCount >= rank.minWorkouts) {
-      return rank
-    }
+    if (workoutsCount >= RANKS[i].minWorkouts) return RANKS[i]
   }
   return RANKS[0]
 }
@@ -412,4 +212,23 @@ export function getNextRank(currentRank: RankDefinition): RankDefinition | null 
   const currentIndex = RANKS.findIndex((r) => r.id === currentRank.id)
   if (currentIndex === -1 || currentIndex === RANKS.length - 1) return null
   return RANKS[currentIndex + 1]
+}
+
+export type RankProgress = {
+  rank: RankDefinition
+  next: RankDefinition | null
+  workouts: number
+  /** 0–1 dentro do rank atual (1 no rank máximo). */
+  ratio: number
+  /** Treinos que faltam para o próximo rank (0 no rank máximo). */
+  remaining: number
+}
+
+export function getRankProgress(workouts: number, override?: RankDefinition | null): RankProgress {
+  const rank = override ?? getRankForWorkouts(workouts)
+  const next = getNextRank(rank)
+  if (!next) return { rank, next, workouts, ratio: 1, remaining: 0 }
+  const span = next.minWorkouts - rank.minWorkouts
+  const done = Math.min(Math.max(workouts - rank.minWorkouts, 0), span)
+  return { rank, next, workouts, ratio: done / span, remaining: span - done }
 }
