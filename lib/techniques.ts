@@ -24,7 +24,7 @@ export const strikingTechniqueGroups: TechniqueGroup[] = [
       { id: "overhand", label: "Overhand (Mata-cobra)" },
       { id: "gancho-corpo-frente", label: "Gancho no corpo (frente)" },
       { id: "gancho-corpo-tras", label: "Gancho no corpo (trás)" },
-      { id: "soco-linha-cintura", label: "Soco na linha de cintura" },
+      { id: "soco-linha-cintura", label: "Direto no corpo (plexo)" },
     ],
   },
   {
@@ -43,15 +43,28 @@ export const strikingTechniqueGroups: TechniqueGroup[] = [
   {
     label: "Chutes",
     techniques: [
-      { id: "teep-frente", label: "Teep / Chute frontal (frente)" },
-      { id: "teep-tras", label: "Teep / Chute frontal (trás)" },
-      { id: "chute-corpo-frente", label: "Chute circular no corpo (frente)" },
-      { id: "chute-corpo-tras", label: "Chute circular no corpo (trás)" },
+      { id: "teep-frente", label: "Teep frontal (perna da frente)" },
+      { id: "teep-tras", label: "Teep posterior (perna de trás)" },
+      { id: "chute-corpo-frente", label: "Middle kick frontal (corpo)" },
+      { id: "chute-corpo-tras", label: "Middle kick posterior (corpo)" },
       { id: "low-kick-frente", label: "Low kick frontal (coxa interna)" },
       { id: "low-kick-tras", label: "Low kick posterior (coxa externa)" },
-      { id: "calf-kick", label: "Chute na panturrilha (Calf kick)" },
-      { id: "high-kick", label: "Chute na cabeça (High kick)" },
-      { id: "chute-giratorio", label: "Chute giratório / rodado" },
+      { id: "calf-kick", label: "Calf kick (panturrilha)" },
+      { id: "high-kick-frente", label: "High kick frontal (cabeça)" },
+      { id: "high-kick", label: "High kick posterior (cabeça)" },
+      { id: "chute-giratorio", label: "Spinning back kick (giratório)" },
+      { id: "chute-lateral", label: "Side kick (perna da frente)" },
+    ],
+  },
+  {
+    label: "Defesa e Movimentação",
+    techniques: [
+      { id: "esquiva-lateral", label: "Esquiva lateral (Slip)" },
+      { id: "pendulo", label: "Pêndulo (Roll)" },
+      { id: "recuo", label: "Recuo de tronco (Pull back)" },
+      { id: "bloqueio-alto", label: "Bloqueio alto" },
+      { id: "check-chute", label: "Bloqueio de chute (Check)" },
+      { id: "saida-lateral", label: "Saída lateral / Pivô" },
     ],
   },
 ]
@@ -78,9 +91,9 @@ export const clinchTechniqueGroups: TechniqueGroup[] = [
     ],
   },
   {
-    label: "Socos na Linha de Cintura e Curtos",
+    label: "Socos Curtos no Corpo",
     techniques: [
-      { id: "clinch-soco-cintura", label: "Soco na linha de cintura" },
+      { id: "clinch-soco-cintura", label: "Direto curto no corpo" },
       { id: "clinch-gancho-corpo", label: "Gancho curto no corpo" },
       { id: "clinch-uppercut-curto", label: "Uppercut curto por dentro" },
     ],
@@ -113,11 +126,11 @@ const allPresets = [
   { id: "rear-elbow", label: "Cotovelada posterior" },
   { id: "lead-knee", label: "Joelhada frontal" },
   { id: "rear-knee", label: "Joelhada posterior" },
-  { id: "lead-roundhouse", label: "Chute circular no corpo (frente)" },
-  { id: "rear-roundhouse", label: "Chute circular no corpo (trás)" },
+  { id: "lead-roundhouse", label: "Middle kick frontal (corpo)" },
+  { id: "rear-roundhouse", label: "Middle kick posterior (corpo)" },
   { id: "lead-low-kick", label: "Low kick frontal" },
   { id: "rear-low-kick", label: "Low kick posterior" },
-  { id: "teep", label: "Teep / Chute frontal" },
+  { id: "teep", label: "Teep frontal (perna da frente)" },
 ]
 
 export function getTechniqueGroupsForType(exerciseType: string): TechniqueGroup[] {
@@ -125,6 +138,10 @@ export function getTechniqueGroupsForType(exerciseType: string): TechniqueGroup[
     return clinchTechniqueGroups
   }
   return strikingTechniqueGroups
+}
+
+export function presetLabel(id: string): string {
+  return allPresets.find((item) => item.id === id)?.label ?? id
 }
 
 export function presetTechnique(id: string): Technique {

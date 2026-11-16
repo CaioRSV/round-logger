@@ -6,8 +6,8 @@ import { PadWorkEditor } from "@/components/pad-work-editor"
 import { loadExerciseTypes } from "@/lib/exercise-types"
 import { getExerciseTypeLabel, intensityLabels } from "@/lib/format"
 import { clampCount, createExercise, createId, moveItem } from "@/lib/sessions"
-import type { ClinchExercise, Discipline, Exercise, ExerciseTypeDefinition, PadWorkExercise, Session, SparringExercise } from "@/lib/types"
-import { disciplines, sparringIntensities } from "@/lib/types"
+import type { Discipline, Exercise, ExerciseTypeDefinition, Session, SparringExercise } from "@/lib/types"
+import { disciplines, hasCombinations, sparringIntensities } from "@/lib/types"
 
 type SessionEditorProps = {
   session?: Session
@@ -42,7 +42,7 @@ function toDraft(session: Session | undefined, date: string): Draft {
 function cleanExercise(exercise: Exercise): Exercise {
   const name = exercise.name.trim()
   const notes = exercise.notes?.trim() || undefined
-  if (exercise.type === "pad-work" || exercise.type === "clinch") {
+  if (hasCombinations(exercise)) {
     return {
       ...exercise,
       name,
@@ -77,11 +77,22 @@ export function SessionEditor({ session, date, onClose, onSave }: SessionEditorP
   function addExerciseFromDef(def: ExerciseTypeDefinition) {
     const newId = createId()
     let ex: Exercise
-    if (def.category === "combination") {
+    if (def.id === "heavy-bag") {
+      // Saco pesado usa o mesmo editor de combinações das Manoplas, mas começa vazio (combos são opcionais).
+      ex = {
+        id: newId,
+        type: "heavy-bag",
+        name: def.defaultName || def.name,
+        rounds: def.defaultRounds ?? 3,
+        durationMinutes: def.defaultDuration ?? 3,
+        done: false,
+        combinations: [],
+      }
+    } else if (def.category === "combination") {
       const isClinch = def.id === "clinch"
       ex = {
         id: newId,
-        type: def.id as "pad-work" | "clinch",
+        type: isClinch ? "clinch" : "pad-work",
         name: def.defaultName || def.name,
         rounds: def.defaultRounds ?? (isClinch ? 4 : 5),
         durationMinutes: def.defaultDuration ?? 3,
@@ -128,17 +139,16 @@ export function SessionEditor({ session, date, onClose, onSave }: SessionEditorP
         done: false,
       }
     } else {
-      const roundType = (["heavy-bag", "shadowboxing", "cardio", "jump-rope"].includes(def.id)
-        ? def.id
-        : "heavy-bag") as "heavy-bag" | "shadowboxing" | "cardio" | "jump-rope"
-      ex = {
+      const base = {
         id: newId,
-        type: roundType,
         name: def.defaultName || def.name,
         rounds: def.defaultRounds ?? 3,
         durationMinutes: def.defaultDuration ?? 3,
         done: false,
       }
+      ex = ["shadowboxing", "cardio", "jump-rope"].includes(def.id)
+        ? { ...base, type: def.id as "shadowboxing" | "cardio" | "jump-rope" }
+        : { ...base, type: "heavy-bag", combinations: [] }
     }
     setDraft((current) => ({ ...current, exercises: [...current.exercises, ex] }))
   }
@@ -160,7 +170,7 @@ export function SessionEditor({ session, date, onClose, onSave }: SessionEditorP
     if (
       draft.exercises.some(
         (exercise) =>
-          (exercise.type === "pad-work" || exercise.type === "clinch") &&
+          hasCombinations(exercise) &&
           exercise.combinations.some((combination) => combination.techniques.length === 0),
       )
     ) {
@@ -312,10 +322,10 @@ export function SessionEditor({ session, date, onClose, onSave }: SessionEditorP
                     </select>
                   </label>
                 )}
-                {(exercise.type === "pad-work" || exercise.type === "clinch") && (
+                {hasCombinations(exercise) && (
                   <div className="draft-span">
                     <PadWorkEditor
-                      exercise={exercise as PadWorkExercise | ClinchExercise}
+                      exercise={exercise}
                       onChange={(next) => updateExercise(exercise.id, () => next)}
                     />
                   </div>

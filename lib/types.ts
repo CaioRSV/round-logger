@@ -53,8 +53,15 @@ export type ClinchExercise = ExerciseBase & {
   combinations: Combination[]
 }
 
+export type HeavyBagExercise = ExerciseBase & {
+  type: "heavy-bag"
+  rounds: number
+  durationMinutes: number
+  combinations: Combination[]
+}
+
 export type RoundExercise = ExerciseBase & {
-  type: "heavy-bag" | "shadowboxing" | "cardio" | "jump-rope"
+  type: "shadowboxing" | "cardio" | "jump-rope"
   rounds: number
   durationMinutes: number
 }
@@ -72,7 +79,15 @@ export type SparringExercise = ExerciseBase & {
   intensity: SparringIntensity
 }
 
-export type Exercise = PadWorkExercise | ClinchExercise | RoundExercise | BurpeesExercise | SparringExercise
+export type CombinationExercise = PadWorkExercise | ClinchExercise | HeavyBagExercise
+
+export type Exercise = PadWorkExercise | ClinchExercise | HeavyBagExercise | RoundExercise | BurpeesExercise | SparringExercise
+
+export const combinationExerciseTypes = ["pad-work", "clinch", "heavy-bag"] as const
+
+export function hasCombinations(exercise: Exercise): exercise is CombinationExercise {
+  return (combinationExerciseTypes as readonly string[]).includes(exercise.type)
+}
 
 export type ExerciseTypeCategory = "combination" | "rounds" | "reps" | "sparring"
 

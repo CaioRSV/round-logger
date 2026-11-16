@@ -22,8 +22,8 @@ export const defaultExerciseTypes: ExerciseTypeDefinition[] = [
   {
     id: "heavy-bag",
     name: "Saco pesado",
-    description: "Volume de golpes, potência, ritmo e condicionamento em rounds.",
-    category: "rounds",
+    description: "Volume de golpes, potência e ritmo em rounds, com combinações opcionais.",
+    category: "combination",
     defaultName: "Saco pesado",
     defaultRounds: 3,
     defaultDuration: 3,
@@ -86,7 +86,8 @@ export function loadExerciseTypes(): ExerciseTypeDefinition[] {
         ["combination", "rounds", "reps", "sparring"].includes(item.category),
     )
     if (valid.length === 0) return defaultExerciseTypes
-    return valid
+    // Migração: Saco pesado passou a aceitar combinações (mesma mecânica das Manoplas).
+    return valid.map((item) => (item.id === "heavy-bag" && !item.isCustom ? { ...item, category: "combination" } : item))
   } catch {
     return defaultExerciseTypes
   }

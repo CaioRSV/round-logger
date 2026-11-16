@@ -6,6 +6,7 @@ import { formatLongDate, formatShortDate } from "@/lib/dates"
 import { formatCombo, formatVolume, intensityLabels } from "@/lib/format"
 import { sharePath } from "@/lib/storage"
 import type { Session } from "@/lib/types"
+import { hasCombinations } from "@/lib/types"
 
 type ShareDialogProps = {
   session: Session
@@ -67,7 +68,7 @@ export function ShareDialog({ session, onClose }: ShareDialogProps) {
                     {formatVolume(exercise)}
                     {exercise.type === "sparring" ? ` · ${intensityLabels[exercise.intensity]}` : ""}
                   </span>
-                  {(exercise.type === "pad-work" || exercise.type === "clinch") && exercise.combinations.map((combination) => <small key={combination.id}>{formatCombo(combination)}</small>)}
+                  {hasCombinations(exercise) && exercise.combinations.map((combination) => <small key={combination.id}>{formatCombo(combination)}</small>)}
                   {exercise.notes && <small>{exercise.notes}</small>}
                 </div>
               </div>

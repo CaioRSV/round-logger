@@ -78,7 +78,7 @@ export function createExercise(type: ExerciseType): Exercise {
         ],
       }
     case "heavy-bag":
-      return { id, type: "heavy-bag", name: "Saco pesado", rounds: 3, durationMinutes: 3, done: false }
+      return { id, type: "heavy-bag", name: "Saco pesado", rounds: 3, durationMinutes: 3, done: false, combinations: [] }
     case "shadowboxing":
       return { id, type: "shadowboxing", name: "Sombra", rounds: 3, durationMinutes: 3, done: false }
     case "cardio":
@@ -177,13 +177,21 @@ export function isExercise(value: unknown): value is Exercise {
   if (value.type === "pad-work" || value.type === "clinch") {
     return typeof value.rounds === "number" && typeof value.durationMinutes === "number" && Array.isArray(value.combinations) && value.combinations.every(isCombination)
   }
+  if (value.type === "heavy-bag") {
+    // Saco pesado antigo não tinha combinações; normalizeSession preenche com [].
+    return (
+      typeof value.rounds === "number" &&
+      typeof value.durationMinutes === "number" &&
+      (value.combinations === undefined || (Array.isArray(value.combinations) && value.combinations.every(isCombination)))
+    )
+  }
   if (value.type === "sparring") {
     return typeof value.rounds === "number" && typeof value.durationMinutes === "number" && isIntensity(value.intensity)
   }
   return typeof value.rounds === "number" && typeof value.durationMinutes === "number"
 }
 
-export function isSession(value: unknown): value is Session {
+function isRawSession(value: unknown): value is Session {
   if (!isRecord(value)) return false
   return (
     typeof value.id === "string" &&
@@ -194,6 +202,25 @@ export function isSession(value: unknown): value is Session {
     Array.isArray(value.exercises) &&
     value.exercises.every(isExercise)
   )
+}
+
+/** Garante campos adicionados em versões mais novas (ex.: combinações no Saco pesado). */
+export function normalizeSession(session: Session): Session {
+  return {
+    ...session,
+    exercises: session.exercises.map((exercise) =>
+      exercise.type === "heavy-bag" && !Array.isArray(exercise.combinations) ? { ...exercise, combinations: [] } : exercise,
+    ),
+  }
+}
+
+/** Valida e normaliza dados vindos de fora (localStorage, backup, link compartilhado). */
+export function parseSessions(values: unknown[]): Session[] {
+  return values.filter(isRawSession).map(normalizeSession)
+}
+
+export function parseSession(value: unknown): Session | null {
+  return isRawSession(value) ? normalizeSession(value) : null
 }
 
 export const seed: Session[] = [
@@ -232,13 +259,24 @@ export const seed: Session[] = [
           ]),
           combo("c-clinch-2", [
             hit("t-c4", "Travamento de braço"),
-            hit("t-c5", "Soco na linha de cintura"),
+            hit("t-c5", "Direto curto no corpo"),
             hit("t-c6", "Joelhada na costela"),
           ]),
         ],
         notes: "Postura ereta. Fechar cotovelos para proteger as costelas.",
       },
-      { id: "e2", type: "heavy-bag", name: "Saco pesado", rounds: 4, durationMinutes: 3, done: true },
+      {
+        id: "e2",
+        type: "heavy-bag",
+        name: "Saco pesado",
+        rounds: 4,
+        durationMinutes: 3,
+        done: true,
+        combinations: [
+          combo("c-bag-1", [hit("t-b1", "Jab"), hit("t-b2", "Direto"), hit("t-b3", "Low kick posterior (coxa externa)")]),
+          combo("c-bag-2", [hit("t-b4", "Teep frontal (perna da frente)"), hit("t-b5", "Middle kick posterior (corpo)")]),
+        ],
+      },
       {
         id: "e3",
         type: "sparring",
@@ -267,7 +305,17 @@ export const seed: Session[] = [
     title: "Kickboxing · potência",
     kind: "KICKBOXING",
     exercises: [
-      { id: "e6", type: "heavy-bag", name: "Saco pesado", rounds: 6, durationMinutes: 3, done: true },
+      {
+        id: "e6",
+        type: "heavy-bag",
+        name: "Saco pesado",
+        rounds: 6,
+        durationMinutes: 3,
+        done: true,
+        combinations: [
+          combo("c-bag-3", [hit("t-b6", "Jab"), hit("t-b7", "Direto"), hit("t-b8", "Side kick (perna da frente)")]),
+        ],
+      },
       { id: "e7", type: "burpees", name: "Burpees", sets: 4, reps: 12, done: true },
     ],
   },

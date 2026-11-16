@@ -1,11 +1,28 @@
 import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react"
 import { useState } from "react"
 
+import {
+  combinationPresetTechniques,
+  describeCombinationPreset,
+  findCombinationPreset,
+  getCombinationPresetGroupsForType,
+  type CombinationPresetGroup,
+} from "@/lib/combination-presets"
 import { customTechnique, getTechniqueGroupsForType, presetTechnique } from "@/lib/techniques"
 import { createId, moveItem } from "@/lib/sessions"
-import type { ClinchExercise, Combination, PadWorkExercise, Technique } from "@/lib/types"
+import type { Combination, CombinationExercise, Technique } from "@/lib/types"
 
-type CombinationExercise = PadWorkExercise | ClinchExercise
+function CombinationPresetOptions({ groups }: { groups: CombinationPresetGroup[] }) {
+  return groups.map((group) => (
+    <optgroup key={group.label} label={group.label}>
+      {group.presets.map((preset) => (
+        <option key={preset.id} value={preset.id}>
+          {describeCombinationPreset(preset)}
+        </option>
+      ))}
+    </optgroup>
+  ))
+}
 
 type PadWorkEditorProps = {
   exercise: CombinationExercise
@@ -14,8 +31,10 @@ type PadWorkEditorProps = {
 
 export function PadWorkEditor({ exercise, onChange }: PadWorkEditorProps) {
   const [custom, setCustom] = useState<Record<string, string>>({})
+  const [editing, setEditing] = useState<{ techniqueId: string; value: string } | null>(null)
   const isClinch = exercise.type === "clinch"
   const availableGroups = getTechniqueGroupsForType(exercise.type)
+  const presetGroups = getCombinationPresetGroupsForType(exercise.type)
 
   function updateCombinations(combinations: Combination[]) {
     onChange({ ...exercise, combinations } as CombinationExercise)
@@ -25,8 +44,29 @@ export function PadWorkEditor({ exercise, onChange }: PadWorkEditorProps) {
     updateCombinations(exercise.combinations.map((item) => (item.id === id ? combination : item)))
   }
 
+  function commitRename(combination: Combination, technique: Technique) {
+    if (!editing) return
+    const label = editing.value.trim()
+    setEditing(null)
+    if (!label || label === technique.label) return
+    updateCombination(combination.id, {
+      ...combination,
+      techniques: combination.techniques.map((item) => (item.id === technique.id ? { ...item, label, custom: true } : item)),
+    })
+  }
+
+  function addTechniques(combination: Combination, techniques: Technique[]) {
+    updateCombination(combination.id, { ...combination, techniques: [...combination.techniques, ...techniques] })
+  }
+
   function addTechnique(combination: Combination, technique: Technique) {
-    updateCombination(combination.id, { ...combination, techniques: [...combination.techniques, technique] })
+    addTechniques(combination, [technique])
+  }
+
+  function addCombinationFromPreset(presetId: string) {
+    const preset = findCombinationPreset(presetId)
+    if (!preset) return
+    updateCombinations([...exercise.combinations, { id: createId(), techniques: combinationPresetTechniques(preset) }])
   }
 
   function defaultNewCombo(): Combination {
@@ -54,7 +94,7 @@ export function PadWorkEditor({ exercise, onChange }: PadWorkEditorProps) {
           <p className="combo-empty">
             {isClinch
               ? "Nenhuma sequência de clinche ainda. Toque em 'Nova combinação' para montar a pegada e os golpes."
-              : "Nenhuma combinação ainda. Toque em 'Nova combinação' para definir a sequência de golpes."}
+              : "Nenhuma combinação ainda. Toque em 'Nova combinação' ou escolha uma combinação pronta abaixo."}
           </p>
         </div>
       )}
@@ -96,10 +136,38 @@ export function PadWorkEditor({ exercise, onChange }: PadWorkEditorProps) {
               {combination.techniques.map((technique, techniqueIndex) => (
                 <li key={technique.id} className="tech-row">
                   <span className="tech-index">{String(techniqueIndex + 1).padStart(2, "0")}</span>
-                  <span className="tech-label">
-                    {technique.label}
-                    {technique.custom && <em> personalizado</em>}
-                  </span>
+                  {editing?.techniqueId === technique.id ? (
+                    <input
+                      className="tech-label-input"
+                      autoFocus
+                      value={editing.value}
+                      aria-label={`Renomear ${technique.label}`}
+                      onFocus={(event) => event.target.select()}
+                      onChange={(event) => setEditing({ ...editing, value: event.target.value })}
+                      onBlur={() => commitRename(combination, technique)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault()
+                          commitRename(combination, technique)
+                        } else if (event.key === "Escape") {
+                          // Evita que o Esc feche o modal inteiro.
+                          event.preventDefault()
+                          event.stopPropagation()
+                          event.nativeEvent.stopImmediatePropagation()
+                          setEditing(null)
+                        }
+                      }}
+                    />
+                  ) : (
+                    <span
+                      className="tech-label editable"
+                      title="Clique duas vezes para renomear"
+                      onDoubleClick={() => setEditing({ techniqueId: technique.id, value: technique.label })}
+                    >
+                      {technique.label}
+                      {technique.custom && <em> personalizado</em>}
+                    </span>
+                  )}
                   <div className="draft-move">
                     <button
                       type="button"
@@ -167,6 +235,20 @@ export function PadWorkEditor({ exercise, onChange }: PadWorkEditorProps) {
               </select>
             </div>
             <div className="combo-add-row">
+              <select
+                value=""
+                aria-label={`Importar combinação pronta para a combinação ${index + 1}`}
+                onChange={(event) => {
+                  const preset = findCombinationPreset(event.target.value)
+                  if (!preset) return
+                  addTechniques(combination, combinationPresetTechniques(preset))
+                }}
+              >
+                <option value="">Adicionar combinação pronta (vários golpes)</option>
+                <CombinationPresetOptions groups={presetGroups} />
+              </select>
+            </div>
+            <div className="combo-add-row">
               <input
                 value={customValue}
                 placeholder={isClinch ? "Golpe ou pegada personalizada (ex.: Joelhada no fígado)" : "Golpe personalizado (ex.: Overhand)"}
@@ -203,6 +285,16 @@ export function PadWorkEditor({ exercise, onChange }: PadWorkEditorProps) {
       >
         <Plus size={13} /> {isClinch ? "Nova combinação de clinche" : "Nova combinação"}
       </button>
+      <div className="combo-add-row">
+        <select
+          value=""
+          aria-label="Nova combinação a partir de uma combinação pronta"
+          onChange={(event) => addCombinationFromPreset(event.target.value)}
+        >
+          <option value="">Nova combinação a partir de uma pronta…</option>
+          <CombinationPresetOptions groups={presetGroups} />
+        </select>
+      </div>
     </div>
   )
 }

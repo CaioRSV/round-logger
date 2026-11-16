@@ -1,4 +1,5 @@
 import type { Combination, Exercise, ExerciseType, SessionStatus, SparringIntensity } from "@/lib/types"
+import { hasCombinations } from "@/lib/types"
 
 export const exerciseTypeLabels: Record<string, string> = {
   "pad-work": "Manoplas",
@@ -41,7 +42,7 @@ export function formatVolume(exercise: Exercise): string {
 export function formatDetail(exercise: Exercise): string {
   const volume = formatVolume(exercise)
   if (exercise.type === "sparring") return `${volume} · ${intensityLabels[exercise.intensity]}`
-  if ((exercise.type === "pad-work" || exercise.type === "clinch") && exercise.combinations.length > 0) {
+  if (hasCombinations(exercise) && exercise.combinations.length > 0) {
     const count = exercise.combinations.length
     return `${volume} · ${count} ${count === 1 ? "combo" : "combos"}`
   }

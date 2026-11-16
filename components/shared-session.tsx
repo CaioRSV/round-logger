@@ -8,6 +8,7 @@ import { dateKey, formatLongDate } from "@/lib/dates"
 import { exerciseTypeLabels, formatCombo, formatVolume, intensityLabels } from "@/lib/format"
 import { copySessionToCalendar, decodeSharePayload, findStoredSession } from "@/lib/storage"
 import type { Session } from "@/lib/types"
+import { hasCombinations } from "@/lib/types"
 
 function readHashPayload(): Session | null {
   if (typeof window === "undefined") return null
@@ -202,7 +203,7 @@ export function SharedSessionView({ id }: { id: string }) {
                     {formatVolume(exercise)}
                     <span className="shared-round-label">ROUND {String(index + 1).padStart(2, "0")}</span>
                   </span>
-                  {(exercise.type === "pad-work" || exercise.type === "clinch") &&
+                  {hasCombinations(exercise) &&
                     exercise.combinations.map((combination, comboIndex) => (
                       <small key={combination.id}>
                         <span className="combo-marker">COMBO {String(comboIndex + 1).padStart(2, "0")}</span>

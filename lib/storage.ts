@@ -1,5 +1,5 @@
 import { loadExerciseTypes, saveExerciseTypes } from "@/lib/exercise-types"
-import { createId, isSession } from "@/lib/sessions"
+import { createId, parseSession, parseSessions } from "@/lib/sessions"
 import type { ExerciseTypeDefinition, Session, UserProfile } from "@/lib/types"
 
 const SESSIONS_STORAGE_KEY = "round-logger.sessions.v1"
@@ -51,7 +51,7 @@ export function loadSessions(): Session[] {
     if (!raw) return []
     const parsed: unknown = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
-    return parsed.filter(isSession)
+    return parseSessions(parsed)
   } catch {
     return []
   }
@@ -136,11 +136,11 @@ export function importBackupData(rawText: string): ImportResult {
 
     // Support both wrapped backup format and raw array of sessions
     if (Array.isArray(parsed)) {
-      sessionsToImport = parsed.filter(isSession)
+      sessionsToImport = parseSessions(parsed)
     } else {
       const backup = parsed as Partial<BackupData>
       if (Array.isArray(backup.sessions)) {
-        sessionsToImport = backup.sessions.filter(isSession)
+        sessionsToImport = parseSessions(backup.sessions)
       }
       if (Array.isArray(backup.exerciseTypes)) {
         typesToImport = backup.exerciseTypes.filter(
@@ -228,7 +228,7 @@ export function encodeSharePayload(session: Session): string {
 export function decodeSharePayload(payload: string): Session | null {
   try {
     const parsed: unknown = JSON.parse(new TextDecoder().decode(base64UrlToBytes(payload)))
-    return isSession(parsed) ? parsed : null
+    return parseSession(parsed)
   } catch {
     return null
   }

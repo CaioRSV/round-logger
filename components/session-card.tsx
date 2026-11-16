@@ -5,6 +5,7 @@ import { formatShortDate } from "@/lib/dates"
 import { formatCombo, formatDetail } from "@/lib/format"
 import { getStatus } from "@/lib/sessions"
 import type { Session } from "@/lib/types"
+import { hasCombinations } from "@/lib/types"
 
 type SessionCardProps = {
   session: Session
@@ -53,7 +54,7 @@ export function SessionCard({ session, onToggle, onShare, onEdit, onDelete }: Se
                 <ExerciseIcon type={exercise.type} size={14} />
                 <span className="exercise-name">{exercise.name}</span>
                 <span className="exercise-detail">{formatDetail(exercise)}</span>
-                {(exercise.type === "pad-work" || exercise.type === "clinch") && exercise.combinations.length > 0 && (
+                {hasCombinations(exercise) && exercise.combinations.length > 0 && (
                   <div className="exercise-combos">
                     {exercise.combinations.map((c, i) => (
                       <span key={c.id} className="combo-chip-item">

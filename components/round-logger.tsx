@@ -54,6 +54,7 @@ import {
   trainingStreak,
 } from "@/lib/sessions"
 import type { Session, SessionStatus, UserProfile } from "@/lib/types"
+import { hasCombinations } from "@/lib/types"
 
 const navItems = [
   { label: "Visão geral", icon: Activity },
@@ -84,7 +85,7 @@ function matchesQuery(session: Session, query: string): boolean {
   const needle = query.trim().toLowerCase()
   if (!needle) return true
   const techLabels = session.exercises.flatMap((exercise) => {
-    if (exercise.type === "pad-work" || exercise.type === "clinch") {
+    if (hasCombinations(exercise)) {
       return exercise.combinations.flatMap((c) => c.techniques.map((t) => t.label))
     }
     return []
