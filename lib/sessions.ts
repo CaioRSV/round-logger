@@ -208,9 +208,13 @@ function isRawSession(value: unknown): value is Session {
 export function normalizeSession(session: Session): Session {
   return {
     ...session,
-    exercises: session.exercises.map((exercise) =>
-      exercise.type === "heavy-bag" && !Array.isArray(exercise.combinations) ? { ...exercise, combinations: [] } : exercise,
-    ),
+    exercises: session.exercises.map((exercise) => {
+      const next = exercise.type === "heavy-bag" && !Array.isArray(exercise.combinations) ? { ...exercise, combinations: [] } : { ...exercise }
+      // Campos opcionais do Timer Play: descarta valores inválidos vindos de backups antigos/editados.
+      if (typeof next.restSeconds !== "number" || !Number.isFinite(next.restSeconds)) delete next.restSeconds
+      if (typeof next.repeat !== "number" || !Number.isInteger(next.repeat) || next.repeat < 1) delete next.repeat
+      return next
+    }),
   }
 }
 

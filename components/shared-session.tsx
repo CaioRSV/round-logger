@@ -1,16 +1,18 @@
 "use client"
 
-import { CalendarDays, CalendarPlus, Check, Clock3, Shield, Swords } from "lucide-react"
+import { CalendarDays, CalendarPlus, Check, Clock3, Play, Shield, Swords } from "lucide-react"
 import { useEffect, useState } from "react"
 
 import { ExerciseIcon } from "@/components/exercise-icon"
+import { TimerPlayer } from "@/components/timer-player"
 import { dateKey, formatLongDate } from "@/lib/dates"
 import { exerciseTypeLabels, formatCombo, formatVolume, intensityLabels } from "@/lib/format"
-import { copySessionToCalendar, decodeSharePayload, findStoredSession } from "@/lib/storage"
+import { decodeShareLink } from "@/lib/share-link"
+import { copySessionToCalendar, findStoredSession } from "@/lib/storage"
 import type { Session } from "@/lib/types"
-import { hasCombinations } from "@/lib/types"
+import { hasCombinations, isTimedExercise } from "@/lib/types"
 
-function readHashPayload(): Session | null {
+async function readHashPayload(): Promise<Session | null> {
   if (typeof window === "undefined") return null
   const hash = window.location.hash.replace(/^#/, "")
   if (!hash) return null
@@ -20,21 +22,26 @@ function readHashPayload(): Session | null {
   } catch {
     payload = hash
   }
-  return decodeSharePayload(payload)
+  return decodeShareLink(payload)
 }
 
-export function SharedSessionView({ id }: { id: string }) {
+export function SharedSessionView({ id }: { id?: string }) {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
   const [targetDate, setTargetDate] = useState(() => dateKey(new Date()))
   const [savedSessionId, setSavedSessionId] = useState<string | null>(null)
   const [copiedDate, setCopiedDate] = useState<string | null>(null)
+  const [playingId, setPlayingId] = useState<string | null>(null)
+  const playingExercise = session?.exercises.find((exercise) => exercise.id === playingId)
 
   useEffect(() => {
-    const loaded = readHashPayload() ?? findStoredSession(id)
-    setSession(loaded)
-    if (loaded?.date) {
-      // Default target date to today, or if user prefers, they can pick any date
+    let cancelled = false
+    void readHashPayload().then((fromHash) => {
+      if (cancelled) return
+      setSession(fromHash ?? (id ? findStoredSession(id) : null))
       setTargetDate(dateKey(new Date()))
+    })
+    return () => {
+      cancelled = true
     }
   }, [id])
 
@@ -217,7 +224,18 @@ export function SharedSessionView({ id }: { id: string }) {
                     </small>
                   )}
                 </div>
-                <span className="station-ready">PRONTO</span>
+                {isTimedExercise(exercise) ? (
+                  <button
+                    type="button"
+                    className="station-play"
+                    onClick={() => setPlayingId(exercise.id)}
+                    aria-label={`Abrir timer de ${exercise.name}`}
+                  >
+                    <Play size={12} /> TIMER
+                  </button>
+                ) : (
+                  <span className="station-ready">PRONTO</span>
+                )}
               </section>
             ))}
           </div>
@@ -229,6 +247,25 @@ export function SharedSessionView({ id }: { id: string }) {
             </a>
           </footer>
         </article>
+      )}
+      {session && playingExercise && isTimedExercise(playingExercise) && (
+        <TimerPlayer
+          key={playingExercise.id}
+          exercise={playingExercise}
+          sessionTitle={session.title}
+          onClose={() => setPlayingId(null)}
+          // Somente leitura: ajustes de descanso/repetição valem só para esta visita.
+          onUpdate={(patch) =>
+            setSession((current) =>
+              current
+                ? {
+                    ...current,
+                    exercises: current.exercises.map((exercise) => (exercise.id === playingExercise.id ? { ...exercise, ...patch } : exercise)),
+                  }
+                : current,
+            )
+          }
+        />
       )}
     </main>
   )

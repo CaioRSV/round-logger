@@ -37,6 +37,10 @@ type ExerciseBase = {
   name: string
   notes?: string
   done: boolean
+  /** Descanso entre rounds, em segundos (exercícios com rounds). Padrão: 60. */
+  restSeconds?: number
+  /** Repetir o bloco de rounds X vezes (ex.: 2 para trocar de manopla com o parceiro). Padrão: 1. */
+  repeat?: number
 }
 
 export type PadWorkExercise = ExerciseBase & {
@@ -120,3 +124,10 @@ export type UserProfile = {
   avatarUrl?: string
 }
 
+
+/** Exercícios com rounds e tempo (todos menos os de séries/repetições), jogáveis no Timer Play. */
+export type TimedExercise = Exclude<Exercise, BurpeesExercise>
+
+export function isTimedExercise(exercise: Exercise): exercise is TimedExercise {
+  return exercise.type !== "burpees"
+}

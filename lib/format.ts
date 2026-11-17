@@ -36,7 +36,8 @@ export function formatCombo(combination: Combination): string {
 export function formatVolume(exercise: Exercise): string {
   if (exercise.type === "burpees") return `${exercise.sets} × ${exercise.reps} reps`
   const unit = exercise.rounds === 1 ? "round" : "rounds"
-  return `${exercise.rounds} ${unit} · ${exercise.durationMinutes} min`
+  const repeat = exercise.repeat && exercise.repeat > 1 ? ` · ×${exercise.repeat}` : ""
+  return `${exercise.rounds} ${unit} · ${exercise.durationMinutes} min${repeat}`
 }
 
 export function formatDetail(exercise: Exercise): string {

@@ -140,6 +140,11 @@ export function getTechniqueGroupsForType(exerciseType: string): TechniqueGroup[
   return strikingTechniqueGroups
 }
 
+/** Id do preset cujo rótulo é exatamente este (usado para encurtar links compartilhados). */
+export function presetIdForLabel(label: string): string | undefined {
+  return allPresets.find((item) => item.label === label)?.id
+}
+
 export function presetLabel(id: string): string {
   return allPresets.find((item) => item.id === id)?.label ?? id
 }

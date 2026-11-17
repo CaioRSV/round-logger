@@ -31,6 +31,7 @@ import { RankDebugSelect, previewWorkouts } from "@/components/rank-debug"
 import { RankQuest } from "@/components/rank-quest"
 import { SessionCard } from "@/components/session-card"
 import { SessionEditor } from "@/components/session-editor"
+import { TimerPlayer } from "@/components/timer-player"
 import { ShareDialog } from "@/components/share-dialog"
 import {
   dateKey,
@@ -55,8 +56,8 @@ import {
   trainingStreak,
 } from "@/lib/sessions"
 import { getRankProgress, type RankDefinition } from "@/lib/ranks"
-import type { Session, SessionStatus, UserProfile } from "@/lib/types"
-import { hasCombinations } from "@/lib/types"
+import type { Exercise, Session, SessionStatus, UserProfile } from "@/lib/types"
+import { hasCombinations, isTimedExercise } from "@/lib/types"
 
 const navItems = [
   { label: "Visão geral", icon: Activity },
@@ -111,6 +112,9 @@ export function RoundLogger() {
   const [profile, setProfile] = useState<UserProfile>(defaultProfile)
   const [questCollapsed, setQuestCollapsed] = useState(false)
   const [debugRank, setDebugRank] = useState<RankDefinition | null>(null)
+  const [playing, setPlaying] = useState<{ sessionId: string; exerciseId: string } | null>(null)
+  const playingSession = playing ? sessions.find((session) => session.id === playing.sessionId) : undefined
+  const playingExercise = playingSession?.exercises.find((exercise) => exercise.id === playing?.exerciseId)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [hydrated, setHydrated] = useState(false)
   const [month, setMonth] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1))
@@ -187,6 +191,19 @@ export function RoundLogger() {
           exercises: session.exercises.map((exercise) => (exercise.id === exerciseId ? { ...exercise, done: !exercise.done } : exercise)),
         }
       }),
+    )
+  }
+
+  function patchExercise(sessionId: string, exerciseId: string, patch: Partial<Pick<Exercise, "done" | "restSeconds" | "repeat">>) {
+    setSessions((current) =>
+      current.map((session) =>
+        session.id !== sessionId
+          ? session
+          : {
+              ...session,
+              exercises: session.exercises.map((exercise) => (exercise.id === exerciseId ? { ...exercise, ...patch } : exercise)),
+            },
+      ),
     )
   }
 
@@ -407,6 +424,7 @@ export function RoundLogger() {
                         onShare={(item) => setDialog({ type: "share", session: item })}
                         onEdit={(item) => setDialog({ type: "edit", session: item })}
                         onDelete={(item) => setDialog({ type: "delete", session: item })}
+                        onPlay={(item, exercise) => setPlaying({ sessionId: item.id, exerciseId: exercise.id })}
                       />
                     ))
                   ) : (
@@ -522,6 +540,7 @@ export function RoundLogger() {
                     onShare={(item) => setDialog({ type: "share", session: item })}
                     onEdit={(item) => setDialog({ type: "edit", session: item })}
                     onDelete={(item) => setDialog({ type: "delete", session: item })}
+                    onPlay={(item, exercise) => setPlaying({ sessionId: item.id, exerciseId: exercise.id })}
                   />
                 ))
               ) : (
@@ -565,6 +584,16 @@ export function RoundLogger() {
           <ExerciseTypesView />
         )}
       </main>
+      {playingSession && playingExercise && isTimedExercise(playingExercise) && (
+        <TimerPlayer
+          key={playingExercise.id}
+          exercise={playingExercise}
+          sessionTitle={playingSession.title}
+          onClose={() => setPlaying(null)}
+          onUpdate={(patch) => patchExercise(playingSession.id, playingExercise.id, patch)}
+          onMarkDone={() => patchExercise(playingSession.id, playingExercise.id, { done: true })}
+        />
+      )}
       {dialog?.type === "create" && <SessionEditor date={dialog.date} onClose={() => setDialog(null)} onSave={saveSession} />}
       {dialog?.type === "edit" && <SessionEditor key={dialog.session.id} session={dialog.session} date={dialog.session.date} onClose={() => setDialog(null)} onSave={saveSession} />}
       {dialog?.type === "share" && <ShareDialog session={dialog.session} onClose={() => setDialog(null)} />}

@@ -1,10 +1,10 @@
-import { ArrowUpRight, Check, Copy, Shield, X } from "lucide-react"
+import { ArrowUpRight, Check, Copy, Share2, Shield, X } from "lucide-react"
 import { useEffect, useState } from "react"
 
 import { ExerciseIcon } from "@/components/exercise-icon"
 import { formatLongDate, formatShortDate } from "@/lib/dates"
 import { formatCombo, formatVolume, intensityLabels } from "@/lib/format"
-import { sharePath } from "@/lib/storage"
+import { shareUrl } from "@/lib/share-link"
 import type { Session } from "@/lib/types"
 import { hasCombinations } from "@/lib/types"
 
@@ -16,7 +16,18 @@ type ShareDialogProps = {
 export function ShareDialog({ session, onClose }: ShareDialogProps) {
   const [copied, setCopied] = useState(false)
   const [preview, setPreview] = useState(false)
-  const path = sharePath(session)
+  const [url, setUrl] = useState<string | null>(null)
+  const canNativeShare = typeof navigator !== "undefined" && typeof navigator.share === "function"
+
+  useEffect(() => {
+    let cancelled = false
+    void shareUrl(session).then((value) => {
+      if (!cancelled) setUrl(value)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [session])
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -27,9 +38,9 @@ export function ShareDialog({ session, onClose }: ShareDialogProps) {
   }, [onClose])
 
   async function copyLink() {
-    const absolute = `${window.location.origin}${path}`
+    if (!url) return
     try {
-      await navigator.clipboard.writeText(absolute)
+      await navigator.clipboard.writeText(url)
       setCopied(true)
       setTimeout(() => setCopied(false), 2200)
     } catch {
@@ -91,17 +102,30 @@ export function ShareDialog({ session, onClose }: ShareDialogProps) {
               <span>{session.exercises.length} exercícios · somente leitura</span>
             </div>
             <p>
-              Qualquer pessoa com este link pode ver o plano, sem criar uma conta. O treino vai dentro do próprio link — ainda não há um servidor, então a página compartilhada abre direto no navegador.
+              Qualquer pessoa com este link pode ver o plano e usar o timer, sem criar uma conta. O treino vai comprimido dentro do próprio link — nada é enviado para um servidor.
             </p>
             <div className="share-link">
-              <span>/share/{session.id}#…</span>
-              <button type="button" onClick={() => void copyLink()}>
+              <span className="share-link-url" title={url ?? undefined}>
+                {url ? url.replace(/^https?:\/\//, "") : "Gerando link…"}
+              </span>
+              <button type="button" disabled={!url} onClick={() => void copyLink()}>
                 {copied ? <Check size={15} /> : <Copy size={15} />} {copied ? "Copiado" : "Copiar link"}
               </button>
             </div>
-            <a className="read-only-btn" href={path} target="_blank" rel="noreferrer">
-              <ArrowUpRight size={15} /> Abrir página compartilhada
-            </a>
+            {canNativeShare && url && (
+              <button
+                className="read-only-btn"
+                type="button"
+                onClick={() => void navigator.share({ title: session.title, text: `Treino: ${session.title}`, url }).catch(() => {})}
+              >
+                <Share2 size={15} /> Enviar pelo celular (WhatsApp, etc.)
+              </button>
+            )}
+            {url && (
+              <a className="read-only-btn" href={url} target="_blank" rel="noreferrer">
+                <ArrowUpRight size={15} /> Abrir página compartilhada
+              </a>
+            )}
             <button className="read-only-btn" type="button" onClick={() => setPreview(true)}>
               <ArrowUpRight size={15} /> Pré-visualizar aqui
             </button>

@@ -234,6 +234,3 @@ export function decodeSharePayload(payload: string): Session | null {
   }
 }
 
-export function sharePath(session: Session): string {
-  return `/share/${session.id}#${encodeSharePayload(session)}`
-}

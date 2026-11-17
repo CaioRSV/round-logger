@@ -1,11 +1,11 @@
-import { Activity, CalendarDays, Check, CheckCircle2, Clock3, Pencil, Share2, Trash2 } from "lucide-react"
+import { Activity, CalendarDays, Check, CheckCircle2, Clock3, Pencil, Play, Share2, Trash2 } from "lucide-react"
 
 import { ExerciseIcon } from "@/components/exercise-icon"
 import { formatShortDate } from "@/lib/dates"
 import { formatCombo, formatDetail } from "@/lib/format"
 import { getStatus } from "@/lib/sessions"
-import type { Session } from "@/lib/types"
-import { hasCombinations } from "@/lib/types"
+import type { Session, TimedExercise } from "@/lib/types"
+import { hasCombinations, isTimedExercise } from "@/lib/types"
 
 type SessionCardProps = {
   session: Session
@@ -13,9 +13,10 @@ type SessionCardProps = {
   onShare: (session: Session) => void
   onEdit: (session: Session) => void
   onDelete: (session: Session) => void
+  onPlay?: (session: Session, exercise: TimedExercise) => void
 }
 
-export function SessionCard({ session, onToggle, onShare, onEdit, onDelete }: SessionCardProps) {
+export function SessionCard({ session, onToggle, onShare, onEdit, onDelete, onPlay }: SessionCardProps) {
   const done = session.exercises.filter((exercise) => exercise.done).length
   const total = session.exercises.length
   const status = getStatus(session)
@@ -43,34 +44,46 @@ export function SessionCard({ session, onToggle, onShare, onEdit, onDelete }: Se
             <p className="session-empty-ex">Nenhum exercício ainda. Toque no ícone de lápis para adicionar.</p>
           ) : (
             session.exercises.map((exercise) => (
-              <button
-                key={exercise.id}
-                type="button"
-                onClick={() => onToggle(session.id, exercise.id)}
-                className={`exercise-row ${exercise.done ? "done" : ""}`}
-                aria-label={`${exercise.done ? "Desmarcar" : "Concluir"} ${exercise.name}`}
-              >
-                <span className={`check-square ${exercise.done ? "checked" : ""}`}>{exercise.done && <Check size={12} />}</span>
-                <ExerciseIcon type={exercise.type} size={14} />
-                <span className="exercise-name">{exercise.name}</span>
-                <span className="exercise-detail">{formatDetail(exercise)}</span>
-                {hasCombinations(exercise) && exercise.combinations.length > 0 && (
-                  <div className="exercise-combos">
-                    {exercise.combinations.map((c, i) => (
-                      <span key={c.id} className="combo-chip-item">
-                        <span className="combo-chip-label">C{i + 1}</span>
-                        <span className="combo-chip-flow">{formatCombo(c)}</span>
-                      </span>
-                    ))}
-                  </div>
+              <div key={exercise.id} className="exercise-row-wrap">
+                <button
+                  type="button"
+                  onClick={() => onToggle(session.id, exercise.id)}
+                  className={`exercise-row ${exercise.done ? "done" : ""}`}
+                  aria-label={`${exercise.done ? "Desmarcar" : "Concluir"} ${exercise.name}`}
+                >
+                  <span className={`check-square ${exercise.done ? "checked" : ""}`}>{exercise.done && <Check size={12} />}</span>
+                  <ExerciseIcon type={exercise.type} size={14} />
+                  <span className="exercise-name">{exercise.name}</span>
+                  <span className="exercise-detail">{formatDetail(exercise)}</span>
+                  {hasCombinations(exercise) && exercise.combinations.length > 0 && (
+                    <div className="exercise-combos">
+                      {exercise.combinations.map((c, i) => (
+                        <span key={c.id} className="combo-chip-item">
+                          <span className="combo-chip-label">C{i + 1}</span>
+                          <span className="combo-chip-flow">{formatCombo(c)}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {exercise.notes && (
+                    <span className="exercise-notes-line">
+                      <span className="notes-prefix">{exercise.type === "sparring" ? "REGRAS" : "OBS"}:</span>
+                      {exercise.notes}
+                    </span>
+                  )}
+                </button>
+                {onPlay && isTimedExercise(exercise) && (
+                  <button
+                    type="button"
+                    className="exercise-play"
+                    aria-label={`Abrir timer de ${exercise.name}`}
+                    title="Timer Play"
+                    onClick={() => onPlay(session, exercise)}
+                  >
+                    <Play size={13} />
+                  </button>
                 )}
-                {exercise.notes && (
-                  <span className="exercise-notes-line">
-                    <span className="notes-prefix">{exercise.type === "sparring" ? "REGRAS" : "OBS"}:</span>
-                    {exercise.notes}
-                  </span>
-                )}
-              </button>
+              </div>
             ))
           )}
         </div>

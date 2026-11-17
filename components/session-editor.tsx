@@ -301,6 +301,25 @@ export function SessionEditor({ session, date, onClose, onSave }: SessionEditorP
                       MINUTOS
                       <input type="number" min={1} max={99} value={exercise.durationMinutes} onChange={(event) => updateExercise(exercise.id, (item) => (item.type === "burpees" ? item : { ...item, durationMinutes: clampCount(event.target.value) }))} />
                     </label>
+                    <label>
+                      DESCANSO (S)
+                      <input
+                        type="number"
+                        min={0}
+                        max={300}
+                        step={15}
+                        value={exercise.restSeconds ?? 60}
+                        onChange={(event) => {
+                          const value = Number.parseInt(event.target.value, 10)
+                          const restSeconds = Number.isFinite(value) ? Math.min(300, Math.max(0, value)) : 60
+                          updateExercise(exercise.id, (item) => ({ ...item, restSeconds }))
+                        }}
+                      />
+                    </label>
+                    <label title="Repete o bloco de rounds. Ex.: 2 para trocar de manopla com o parceiro.">
+                      REPETIR ROUNDS (×)
+                      <input type="number" min={1} max={6} value={exercise.repeat ?? 1} onChange={(event) => updateExercise(exercise.id, (item) => ({ ...item, repeat: clampCount(event.target.value, 6) }))} />
+                    </label>
                   </>
                 )}
                 {exercise.type === "sparring" && (
